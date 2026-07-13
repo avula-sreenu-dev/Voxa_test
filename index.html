@@ -1,0 +1,1944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Voxa — Voice Assistant</title>
+<meta name="theme-color" content="#0A0B10">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0B10;
+    --panel:#12141F;
+    --panel-2:#181B29;
+    --violet:#7C5CFF;
+    --cyan:#35E1D0;
+    --amber:#FFB454;
+    --text:#EDEDF2;
+    --muted:#7A7E8C;
+    --danger:#FF6B6B;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:radial-gradient(120% 100% at 50% -10%, #171a26 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    overflow:hidden;
+    -webkit-tap-highlight-color:transparent;
+    user-select:none;
+  }
+  .app{
+    height:100vh;
+    height:100dvh;
+    display:flex;
+    flex-direction:column;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+  }
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:18px 20px 8px;
+  }
+  .brand{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:20px;
+    letter-spacing:0.3px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan);}
+  .version-badge{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    font-weight:400;
+    color:var(--cyan);
+    background:rgba(53,225,208,0.12);
+    border:1px solid rgba(53,225,208,0.35);
+    padding:2px 8px;
+    border-radius:20px;
+    letter-spacing:0.5px;
+  }
+  .icon-btn{
+    width:38px;height:38px;border-radius:12px;
+    background:var(--panel);
+    border:1px solid #232637;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--muted);
+    cursor:pointer;
+  }
+  .icon-btn:active{background:var(--panel-2);}
+
+  .scroll-region{
+    flex:1;
+    min-height:0;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .scroll-region::-webkit-scrollbar{display:none;}
+  .stage{
+    flex-shrink:0;
+    min-height:360px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:18px;
+    position:relative;
+  }
+  .status{
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--muted);
+    height:18px;
+  }
+  .status.listening{color:var(--cyan);}
+  .status.speaking{color:var(--amber);}
+
+  .orb-wrap{
+    position:relative;
+    width:240px;height:240px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  svg.orb{width:240px;height:240px;overflow:visible;}
+  .ring{
+    fill:none;
+    stroke-width:1.4;
+    transform-origin:center;
+    transition:stroke 0.4s ease;
+  }
+  .core{
+    fill:var(--text);
+    filter:drop-shadow(0 0 18px rgba(124,92,255,0.55));
+    transition:filter 0.4s ease;
+  }
+  .orb-wrap.listening .core{filter:drop-shadow(0 0 26px rgba(53,225,208,0.75));}
+  .orb-wrap.speaking .core{filter:drop-shadow(0 0 26px rgba(255,180,84,0.75));}
+
+  .transcript{
+    width:100%;
+    max-width:640px;
+    margin:0 auto;
+    padding:0 20px 14px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .line{
+    font-size:14px;
+    line-height:1.45;
+    padding:10px 14px;
+    border-radius:14px;
+    max-width:88%;
+    animation:rise 0.25s ease;
+  }
+  @keyframes rise{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+  .line.user{
+    align-self:flex-end;
+    background:var(--panel-2);
+    border:1px solid #262a3d;
+    color:var(--text);
+  }
+  .line.assistant{
+    align-self:flex-start;
+    background:transparent;
+    border:1px solid #1e2130;
+    color:#D6D8E4;
+  }
+  .line .tag{
+    display:block;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:4px;
+  }
+
+  footer{
+    padding:10px 20px calc(20px + env(safe-area-inset-bottom));
+    display:flex;
+    gap:10px;
+    align-items:center;
+  }
+  .mic-btn{
+    flex:1;
+    height:56px;
+    border-radius:18px;
+    border:none;
+    background:linear-gradient(135deg, var(--violet), #5B3FE0);
+    color:#fff;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600;
+    font-size:15px;
+    letter-spacing:0.3px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    cursor:pointer;
+    box-shadow:0 8px 24px rgba(124,92,255,0.35);
+  }
+  .mic-btn.listening{
+    background:linear-gradient(135deg, var(--cyan), #1FB6A8);
+    box-shadow:0 8px 24px rgba(53,225,208,0.35);
+  }
+  .mic-btn:active{transform:scale(0.98);}
+  .cont-toggle{
+    width:56px;height:56px;
+    border-radius:18px;
+    background:var(--panel);
+    border:1px solid #232637;
+    color:var(--muted);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    font-size:11px;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .cont-toggle.active{color:var(--cyan);border-color:#1FB6A8;}
+
+  .modal-backdrop{
+    position:fixed;inset:0;
+    background:rgba(6,7,12,0.7);
+    backdrop-filter:blur(4px);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:20;
+  }
+  .modal-backdrop.open{display:flex;}
+  .modal{
+    width:100%;max-width:480px;
+    background:var(--panel);
+    border:1px solid #232637;
+    border-radius:22px 22px 0 0;
+    padding:22px 22px calc(26px + env(safe-area-inset-bottom));
+    max-height:80vh;
+    overflow-y:auto;
+  }
+  .modal h2{
+    font-family:'Space Grotesk',sans-serif;
+    margin:0 0 4px;
+    font-size:19px;
+  }
+  .modal p.sub{color:var(--muted);font-size:13px;margin:0 0 18px;line-height:1.5;}
+  label{
+    display:block;font-size:12px;color:var(--muted);
+    text-transform:uppercase;letter-spacing:0.8px;
+    margin:16px 0 6px;
+  }
+  input[type=text], input[type=password], select{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid #262a3d;
+    color:var(--text);
+    padding:12px 14px;
+    border-radius:12px;
+    font-size:14px;
+    font-family:'Inter',sans-serif;
+  }
+  select{appearance:none;-webkit-appearance:none;}
+  input:focus, select:focus{outline:1px solid var(--violet);}
+  .modal .row{display:flex;gap:10px;margin-top:20px;}
+  .btn{
+    flex:1;
+    padding:13px;
+    border-radius:12px;
+    border:none;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .btn.primary{background:var(--violet);color:#fff;}
+  .btn.ghost{background:transparent;border:1px solid #262a3d;color:var(--text);}
+  .hint-box{
+    background:var(--panel-2);
+    border:1px solid #232637;
+    border-radius:12px;
+    padding:12px 14px;
+    font-size:12.5px;
+    color:var(--muted);
+    line-height:1.6;
+    margin-top:14px;
+  }
+  .hint-box a{color:var(--cyan);text-decoration:none;}
+  .commands-list{
+    display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;
+  }
+  .chip{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    background:var(--panel-2);
+    border:1px solid #232637;
+    color:var(--muted);
+    padding:6px 10px;
+    border-radius:20px;
+  }
+  .toast{
+    position:fixed;
+    top:calc(14px + env(safe-area-inset-top));
+    left:50%;transform:translateX(-50%);
+    background:var(--panel-2);
+    border:1px solid #262a3d;
+    color:var(--text);
+    padding:10px 16px;
+    border-radius:12px;
+    font-size:13px;
+    z-index:30;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.25s ease, transform 0.25s ease;
+    max-width:80vw;
+    text-align:center;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(4px);}
+
+  .active-card{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:14px;
+    width:100%;
+  }
+  .active-label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    letter-spacing:2px;
+    color:var(--muted);
+    text-transform:uppercase;
+  }
+  .active-ring-wrap{
+    position:relative;
+    width:240px;height:240px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .active-ring{width:240px;height:240px;transform:rotate(-90deg);}
+  .active-ring-bg{fill:none;stroke:#1e2130;stroke-width:8;}
+  .active-ring-fg{
+    fill:none;stroke:var(--cyan);stroke-width:8;stroke-linecap:round;
+    stroke-dasharray:653.45;stroke-dashoffset:0;
+    transition:stroke-dashoffset 1s linear;
+    filter:drop-shadow(0 0 10px rgba(53,225,208,0.6));
+  }
+  .active-digits{
+    position:absolute;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:36px;
+    color:var(--text);
+    letter-spacing:1px;
+  }
+  .active-sub{
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    color:var(--muted);
+    text-align:center;
+    max-width:280px;
+    padding:0 20px;
+  }
+  .active-controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:0 20px;}
+  .active-controls button{
+    padding:10px 18px;
+    border-radius:14px;
+    border:1px solid #232637;
+    background:var(--panel);
+    color:var(--text);
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    cursor:pointer;
+  }
+  .active-controls button.primary{background:var(--violet);border:none;color:#fff;}
+  .active-controls button.danger{color:var(--danger);border-color:rgba(255,107,107,0.4);}
+  .lap-list{
+    width:100%;max-width:280px;
+    max-height:110px;
+    overflow-y:auto;
+    display:flex;flex-direction:column;gap:6px;
+  }
+  .lap-row{
+    display:flex;justify-content:space-between;
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;color:var(--muted);
+    background:var(--panel);
+    padding:6px 12px;border-radius:10px;
+  }
+  .chip-check{
+    display:flex;align-items:center;gap:6px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    background:var(--panel-2);
+    border:1px solid #232637;
+    color:var(--text);
+    padding:6px 10px;
+    border-radius:20px;
+    cursor:pointer;
+  }
+  .chip-check input{accent-color:var(--violet);width:14px;height:14px;}
+
+  .quick-grid{
+    display:flex;
+    gap:12px;
+    padding:10px 20px 16px;
+    max-width:640px;
+    margin:0 auto;
+    width:100%;
+    position:sticky;
+    top:0;
+    z-index:10;
+    background:var(--bg);
+  }
+  .quick-btn{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    background:var(--panel);
+    border:1px solid #232637;
+    border-radius:16px;
+    padding:12px 6px;
+    cursor:pointer;
+    color:var(--text);
+  }
+  .quick-btn:active{background:var(--panel-2);}
+  .quick-icon{font-size:20px;}
+  .quick-label{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:0.5px;}
+
+  footer{position:relative;}
+  #mainBar{flex:1;display:flex;gap:6px;align-items:center;min-width:0;}
+  .attach-btn{
+    width:40px;height:40px;border-radius:13px;flex-shrink:0;
+    background:var(--panel);border:1px solid #232637;color:var(--text);
+    font-size:20px;cursor:pointer;
+  }
+  #chatInput{
+    flex:1 1 auto;min-width:60px;height:44px;border-radius:16px;
+    background:var(--panel-2);border:1px solid #262a3d;color:var(--text);
+    padding:0 12px;font-size:14px;font-family:'Inter',sans-serif;
+  }
+  .mini-circle{
+    width:40px;height:40px;border-radius:50%;flex-shrink:0;
+    background:var(--panel);border:1px solid #232637;color:var(--text);
+    font-size:16px;cursor:pointer;
+  }
+  .mini-circle.send-btn{background:var(--violet);border:none;color:#fff;}
+  .attach-menu{
+    position:absolute;
+    bottom:74px;left:20px;
+    background:var(--panel);
+    border:1px solid #232637;
+    border-radius:16px;
+    padding:8px;
+    display:none;
+    flex-direction:column;
+    gap:4px;
+    z-index:15;
+    min-width:170px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+  }
+  .attach-menu.open{display:flex;}
+  .attach-menu button{
+    background:none;border:none;color:var(--text);
+    text-align:left;padding:10px 12px;border-radius:10px;
+    font-size:13px;font-family:'Inter',sans-serif;cursor:pointer;
+  }
+  .attach-menu button:active{background:var(--panel-2);}
+  .attach-chip{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    background:var(--panel-2);border:1px solid #262a3d;
+    border-radius:12px;padding:6px 12px;
+    font-size:12px;color:var(--muted);
+    margin:0 20px 8px;
+  }
+  .attach-chip button{background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;}
+  input[type=time]{
+    width:100%;background:var(--panel-2);border:1px solid #262a3d;color:var(--text);
+    padding:12px 14px;border-radius:12px;font-size:14px;font-family:'Inter',sans-serif;
+  }
+  .app-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+  .app-grid button{
+    font-family:'JetBrains Mono',monospace;font-size:11px;
+    background:var(--panel-2);border:1px solid #232637;color:var(--text);
+    padding:8px 12px;border-radius:20px;cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><span class="dot"></span>Voxa <span class="version-badge" id="versionBadge">v0.0.0</span></div>
+    <div class="icon-btn" id="settingsBtn">⚙</div>
+  </header>
+
+  <div class="scroll-region" id="scrollRegion">
+    <div class="stage">
+      <div class="status" id="statusText">tap the mic to talk</div>
+      <div class="orb-wrap" id="orbWrap">
+        <svg class="orb" viewBox="0 0 240 240">
+          <circle class="ring" id="ring1" cx="120" cy="120" r="60" stroke="#7C5CFF" stroke-opacity="0.35"/>
+          <circle class="ring" id="ring2" cx="120" cy="120" r="82" stroke="#7C5CFF" stroke-opacity="0.22"/>
+          <circle class="ring" id="ring3" cx="120" cy="120" r="104" stroke="#35E1D0" stroke-opacity="0.14"/>
+          <circle class="core" id="core" cx="120" cy="120" r="26"/>
+        </svg>
+      </div>
+
+      <div class="active-card" id="activeCard" style="display:none;">
+        <div class="active-label" id="activeLabel">TIMER</div>
+        <div class="active-ring-wrap">
+          <svg class="active-ring" viewBox="0 0 240 240">
+            <circle class="active-ring-bg" cx="120" cy="120" r="104"/>
+            <circle class="active-ring-fg" id="activeRingFg" cx="120" cy="120" r="104"/>
+          </svg>
+          <div class="active-digits" id="activeDigits">00:00</div>
+        </div>
+        <div class="active-sub" id="activeSub"></div>
+        <div class="active-controls" id="activeControls"></div>
+        <div class="lap-list" id="lapList"></div>
+      </div>
+    </div>
+
+    <div class="quick-grid">
+      <div class="quick-btn" id="quickCall"><span class="quick-icon">📞</span><span class="quick-label">CALL</span></div>
+      <div class="quick-btn" id="quickAlarm"><span class="quick-icon">⏰</span><span class="quick-label">CLOCK</span></div>
+      <div class="quick-btn" id="quickCalendar"><span class="quick-icon">📅</span><span class="quick-label">CALENDAR</span></div>
+      <div class="quick-btn" id="quickMore"><span class="quick-icon">⋯</span><span class="quick-label">OTHERS</span></div>
+    </div>
+
+    <div class="transcript" id="transcript"></div>
+  </div>
+
+  <footer>
+    <button class="cont-toggle" id="contToggle" title="Loop mode">LOOP</button>
+    <button class="cont-toggle" id="modeToggle" title="Switch input mode">⌨</button>
+    <div id="mainBar">
+      <button class="mic-btn" id="micBtn" style="width:100%;">
+        <span id="micLabel">Tap to talk</span>
+      </button>
+    </div>
+    <div class="attach-menu" id="attachMenu">
+      <button id="attachCamera" type="button">📷 Camera</button>
+      <button id="attachPhotos" type="button">🖼️ Photos</button>
+      <button id="attachDocs" type="button">📄 Documents</button>
+    </div>
+    <input type="file" id="fileCameraInput" accept="image/*" capture="environment" style="display:none;">
+    <input type="file" id="filePhotosInput" accept="image/*" style="display:none;">
+    <input type="file" id="fileDocsInput" style="display:none;">
+  </footer>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h2>Settings</h2>
+    <p class="sub">Everything runs on your device. Nothing leaves it except two optional lookups: weather, and smart Q&A if you add a key below.</p>
+
+    <label>Your city (for weather)</label>
+    <input type="text" id="cityInput" placeholder="e.g. Amaravati">
+
+    <label>Free AI key for open-ended questions (optional)</label>
+    <input type="password" id="apiKeyInput" placeholder="Paste Groq API key">
+    <div class="hint-box">
+      Voxa already handles time, date, math, timers, notes, jokes, weather, alarms, calls, and opening apps without any key.<br><br>
+      For open, general questions, get a free key at <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a> (no card needed) and paste it here. It's saved on this device only — you paste it once, ever.
+    </div>
+
+    <label>Voice</label>
+    <select id="voiceSelect"><option>Loading voices…</option></select>
+    <div class="row" style="margin-top:10px;">
+      <button class="btn ghost" id="testVoiceBtn" type="button">Test voice</button>
+    </div>
+
+    <label>Quick action</label>
+    <div class="row" style="margin-top:0;">
+      <button class="btn ghost" id="pickContactBtn" type="button">📇 Pick contact to call</button>
+    </div>
+
+    <label>Default notification sound</label>
+    <select id="defaultSoundSelect">
+      <option value="default">Default</option>
+      <option value="chime">Chime</option>
+      <option value="bell">Bell</option>
+      <option value="digital">Digital</option>
+    </select>
+
+    <label>Installed apps</label>
+    <p class="sub" style="margin-bottom:8px;">Browsers can't see your installed apps — there's no such permission on any website. Check off what you actually have, once, and Voxa will open the real app instead of the website for those.</p>
+    <div id="installedAppsList" class="commands-list"></div>
+
+    <div class="row">
+      <button class="btn ghost" id="clearNotesBtn" type="button">Clear notes</button>
+      <button class="btn primary" id="saveSettingsBtn" type="button">Save</button>
+    </div>
+
+    <label style="margin-top:22px;">Try saying</label>
+    <div class="commands-list">
+      <span class="chip">what time is it</span>
+      <span class="chip">what's the weather</span>
+      <span class="chip">set an alarm for 7 am</span>
+      <span class="chip">set a timer for 2 minutes</span>
+      <span class="chip">take a note buy milk</span>
+      <span class="chip">read my notes</span>
+      <span class="chip">tell me a joke</span>
+      <span class="chip">what is 45 times 12</span>
+      <span class="chip">open instagram</span>
+      <span class="chip">open telegram</span>
+      <span class="chip">open snapchat</span>
+      <span class="chip">open facebook</span>
+      <span class="chip">open photos</span>
+      <span class="chip">call 9876543210</span>
+      <span class="chip">email about project update</span>
+      <span class="chip">whatsapp 9876543210 saying hi</span>
+      <span class="chip">add calendar event team sync</span>
+      <span class="chip">stop</span>
+    </div>
+    <div class="hint-box">
+      "Open X" works for any app in Voxa's list below — it hands off to that app's own registered link, the same mechanism Alexa itself relies on. If the app isn't installed, Voxa falls back to its website. A few apps (Camera, native Gallery, system Settings) publish no such link to anyone, Alexa included, so those can't be opened by any app on any phone.
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="callModal">
+  <div class="modal">
+    <h2>Call</h2>
+    <p class="sub">Type a number, or pick straight from your contacts.</p>
+    <label>Phone number</label>
+    <input type="text" id="callNumberInput" placeholder="e.g. 9876543210">
+    <div class="row">
+      <button class="btn ghost" id="callPickContactBtn" type="button">📇 Pick contact</button>
+      <button class="btn primary" id="callGoBtn" type="button">Call</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="alarmModal">
+  <div class="modal">
+    <h2>Set alarm</h2>
+    <p class="sub">Rings and sends a notification while Voxa stays open in a tab — this works on Android and iPhone, but the app needs to stay running (not fully closed) to go off.</p>
+    <label>Time</label>
+    <input type="time" id="alarmTimeInput">
+    <label>Note (optional)</label>
+    <input type="text" id="alarmNoteInput" placeholder="e.g. Take medicine">
+    <label>Alarm sound</label>
+    <select id="alarmSoundInput">
+      <option value="default">Default</option>
+      <option value="chime">Chime</option>
+      <option value="bell">Bell</option>
+      <option value="digital">Digital</option>
+    </select>
+    <div class="row">
+      <button class="btn primary" id="alarmSetBtn" type="button" style="flex:1;">Set alarm</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="calendarModal">
+  <div class="modal">
+    <h2>Add calendar event</h2>
+    <p class="sub">Opens Google Calendar pre-filled, defaulting to 1 hour from now — you confirm and save it there.</p>
+    <label>Event title</label>
+    <input type="text" id="calTitleInput" placeholder="e.g. Team sync">
+    <div class="row">
+      <button class="btn primary" id="calAddBtn" type="button" style="flex:1;">Add to calendar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="moreModal">
+  <div class="modal">
+    <h2>More</h2>
+
+    <label>Quick timer</label>
+    <div class="row" style="margin-top:0;">
+      <button class="btn ghost" data-min="1" type="button">1 min</button>
+      <button class="btn ghost" data-min="5" type="button">5 min</button>
+      <button class="btn ghost" data-min="10" type="button">10 min</button>
+      <button class="btn ghost" data-min="30" type="button">30 min</button>
+    </div>
+
+    <label>Notes</label>
+    <input type="text" id="quickNoteInput" placeholder="Type a note and tap Add">
+    <div class="row">
+      <button class="btn ghost" id="quickNoteAddBtn" type="button">Add note</button>
+      <button class="btn ghost" id="quickNoteReadBtn" type="button">Read notes</button>
+    </div>
+
+    <label>More actions</label>
+    <div class="row" style="margin-top:0;">
+      <button class="btn ghost" id="quickWeatherBtn" type="button">🌤️ Weather</button>
+      <button class="btn ghost" id="quickJokeBtn" type="button">😄 Joke</button>
+      <button class="btn ghost" id="quickStopwatchBtn" type="button">⏱️ Stopwatch</button>
+    </div>
+
+    <label>Open an app</label>
+    <div class="app-grid" id="appGrid"></div>
+
+    <div class="row" style="margin-top:22px;">
+      <button class="btn primary" id="quickSettingsBtn" type="button">Full settings</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- Version — check this number in the app to confirm you're on the latest file ---------------- */
+const VOXA_VERSION = '1.7.0';
+
+/* ---------------- Utility ---------------- */
+const $ = (id) => document.getElementById(id);
+const transcriptEl = $('transcript');
+const statusEl = $('statusText');
+const orbWrap = $('orbWrap');
+const micBtn = $('micBtn');
+const micLabel = $('micLabel');
+const contToggle = $('contToggle');
+const toastEl = $('toast');
+const isAndroid = /Android/i.test(navigator.userAgent);
+
+function toast(msg, ms=2400){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>toastEl.classList.remove('show'), ms);
+}
+
+function addLine(role, text){
+  const div = document.createElement('div');
+  div.className = 'line ' + role;
+  const tag = document.createElement('span');
+  tag.className = 'tag';
+  tag.textContent = role === 'user' ? 'you' : 'voxa';
+  div.appendChild(tag);
+  const body = document.createElement('span');
+  body.textContent = text;
+  div.appendChild(body);
+  transcriptEl.appendChild(div);
+  const region = document.getElementById('scrollRegion');
+  if (region) region.scrollTop = region.scrollHeight;
+}
+
+function setStatus(state, text){
+  statusEl.textContent = text;
+  statusEl.className = 'status ' + state;
+  orbWrap.className = 'orb-wrap ' + state;
+}
+
+/* ---------------- Settings persistence ---------------- */
+const store = {
+  get(k, d=null){ try{ const v = localStorage.getItem(k); return v===null? d : JSON.parse(v);}catch(e){return d;} },
+  set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+};
+
+let settings = store.get('voxa_settings', {
+  city:'', apiKey:'', voiceKey:'', notifSound:'default',
+  installedApps: { whatsapp:true, youtube:true, spotify:true, instagram:true }
+});
+let notes = store.get('voxa_notes', []);
+
+$('cityInput').value = settings.city || '';
+$('apiKeyInput').value = settings.apiKey || '';
+$('defaultSoundSelect').value = settings.notifSound || 'default';
+
+$('settingsBtn').onclick = () => $('modalBackdrop').classList.add('open');
+$('modalBackdrop').onclick = (e) => { if(e.target.id==='modalBackdrop') $('modalBackdrop').classList.remove('open'); };
+
+$('saveSettingsBtn').onclick = () => {
+  settings.city = $('cityInput').value.trim();
+  settings.apiKey = $('apiKeyInput').value.trim();
+  settings.voiceKey = $('voiceSelect').value;
+  settings.notifSound = $('defaultSoundSelect').value;
+  settings.installedApps = settings.installedApps || {};
+  document.querySelectorAll('#installedAppsList input[type=checkbox]').forEach((cb) => {
+    settings.installedApps[cb.dataset.app] = cb.checked;
+  });
+  store.set('voxa_settings', settings);
+  $('modalBackdrop').classList.remove('open');
+  toast('Settings saved');
+};
+
+$('clearNotesBtn').onclick = () => {
+  notes = [];
+  store.set('voxa_notes', notes);
+  toast('Notes cleared');
+};
+
+$('pickContactBtn').onclick = async () => {
+  const ok = await pickContactAndAct('call');
+  if (!ok) toast('Contact picker not available on this browser/device.');
+};
+
+/* ---------------- Speech Synthesis (with saved voice choice) ---------------- */
+const synth = window.speechSynthesis;
+let voices = [];
+const voiceSelect = $('voiceSelect');
+
+function loadVoices(){
+  voices = synth.getVoices();
+  if (!voices.length) return;
+  const savedVoiceKey = settings.voiceKey || '';
+  voiceSelect.innerHTML = '';
+  voices.forEach((v) => {
+    const opt = document.createElement('option');
+    const key = v.name + '|' + v.lang;
+    opt.value = key;
+    opt.textContent = `${v.name} (${v.lang})`;
+    if (key === savedVoiceKey) opt.selected = true;
+    voiceSelect.appendChild(opt);
+  });
+  if (!savedVoiceKey) {
+    const preferred = voices.find(v => /en-US|en-GB/.test(v.lang) && /Female|Google/i.test(v.name)) || voices.find(v=>/^en/.test(v.lang)) || voices[0];
+    if (preferred) voiceSelect.value = preferred.name + '|' + preferred.lang;
+  }
+}
+if (synth) {
+  loadVoices();
+  synth.onvoiceschanged = loadVoices;
+}
+
+function currentVoice(){
+  const key = voiceSelect.value;
+  if (!key) return null;
+  const [name, lang] = key.split('|');
+  return voices.find(v => v.name === name && v.lang === lang) || null;
+}
+
+$('testVoiceBtn').onclick = () => speak("Hi, this is how I'll sound.");
+
+function speak(text){
+  return new Promise((resolve) => {
+    addLine('assistant', text);
+    if (!synth) { resolve(); return; }
+    synth.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    const v = currentVoice();
+    if (v) utter.voice = v;
+    utter.rate = 1.0;
+    utter.pitch = 1.0;
+    utter.onstart = () => setStatus('speaking', 'speaking');
+    utter.onend = () => { setStatus('idle', loopMode ? 'loop listening' : 'tap the mic to talk'); resolve(); };
+    utter.onerror = () => resolve();
+    synth.speak(utter);
+  });
+}
+
+/* ---------------- Speech Recognition — robust loop mode ---------------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let listening = false;
+let loopMode = false;
+let loopRunId = 0;
+
+if (SR) {
+  recognition = new SR();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+} else {
+  micLabel.textContent = 'Voice not supported here';
+  setStatus('idle', 'try Chrome on Android');
+}
+
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+function setMicUI(isListening){
+  const btn = document.getElementById('micBtn');
+  const label = document.getElementById('micLabel');
+  if (btn) btn.classList.toggle('listening', isListening);
+  if (label) label.textContent = isListening ? 'Listening…' : 'Tap to talk';
+}
+
+function listenOnce(){
+  return new Promise((resolve, reject) => {
+    if (!recognition) { reject('unsupported'); return; }
+    let settled = false;
+    recognition.onstart = () => {
+      listening = true;
+      setMicUI(true);
+      setStatus('listening', 'listening');
+    };
+    recognition.onresult = (e) => {
+      settled = true;
+      resolve(e.results[e.results.length-1][0].transcript.trim());
+    };
+    recognition.onerror = (e) => {
+      if (!settled) { settled = true; reject(e.error); }
+    };
+    recognition.onend = () => {
+      listening = false;
+      setMicUI(false);
+      if (!settled) { settled = true; reject('no-result'); }
+    };
+    try { recognition.start(); }
+    catch (e) { if (!settled) { settled = true; reject('start-failed'); } }
+  });
+}
+
+/* ---------------- Voice / text-chat mode toggle ---------------- */
+const modeToggle = $('modeToggle');
+const mainBar = $('mainBar');
+const attachMenu = $('attachMenu');
+let textMode = false;
+let pendingAttachment = null;
+const voiceBarMarkup = mainBar.innerHTML;
+
+function bindVoiceBar(){
+  const btn = document.getElementById('micBtn');
+  if (!btn) return;
+  btn.onclick = async () => {
+    if (!recognition) return;
+    if (loopMode) { toast('Loop is on — tap LOOP to turn it off first.'); return; }
+    if (listening) { recognition.stop(); return; }
+    try {
+      const text = await listenOnce();
+      if (text) { addLine('user', text); await handleCommand(text); }
+    } catch (err) { handleListenError(err); }
+  };
+}
+bindVoiceBar();
+
+function renderVoiceBar(){
+  mainBar.innerHTML = voiceBarMarkup;
+  bindVoiceBar();
+}
+
+function renderTextBar(){
+  mainBar.innerHTML = `
+    <button class="attach-btn" id="attachBtn" type="button">+</button>
+    <input type="text" id="chatInput" placeholder="Message Voxa…">
+    <button class="mini-circle" id="dictateBtn" type="button">🎤</button>
+    <button class="mini-circle send-btn" id="sendBtn" type="button">➤</button>
+  `;
+  bindTextBar();
+}
+
+function bindTextBar(){
+  const input = document.getElementById('chatInput');
+  document.getElementById('attachBtn').onclick = () => attachMenu.classList.toggle('open');
+  document.getElementById('sendBtn').onclick = () => sendChatText();
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChatText(); });
+  document.getElementById('dictateBtn').onclick = async () => {
+    if (!recognition) { toast('Voice not supported here'); return; }
+    try {
+      const heard = await listenOnce();
+      if (heard) input.value = (input.value ? input.value + ' ' : '') + heard;
+    } catch (err) { handleListenError(err); }
+  };
+}
+
+async function sendChatText(){
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  const attachment = pendingAttachment;
+  if (!text && !attachment) return;
+  if (text) addLine('user', text);
+  if (attachment) addLine('user', `📎 ${attachment.name}`);
+  input.value = '';
+  pendingAttachment = null;
+  renderAttachChip(null);
+  if (text || attachment) {
+    const defaultPrompt = attachment && attachment.file && attachment.file.type.startsWith('image/')
+      ? 'Describe this image.' : 'Summarize this document.';
+    await handleCommand(text || defaultPrompt, attachment);
+  }
+}
+
+modeToggle.onclick = () => {
+  textMode = !textMode;
+  modeToggle.textContent = textMode ? '🎤' : '⌨';
+  attachMenu.classList.remove('open');
+  if (textMode) {
+    if (loopMode) { loopMode = false; loopRunId++; contToggle.classList.remove('active'); if (listening) recognition.stop(); }
+    contToggle.style.display = 'none'; // LOOP is voice-only — hide it to give the input real width
+    renderTextBar();
+  } else {
+    contToggle.style.display = '';
+    renderVoiceBar();
+  }
+};
+
+function renderAttachChip(file){
+  const existing = document.getElementById('attachChip');
+  if (existing) existing.remove();
+  if (!file) return;
+  const chip = document.createElement('div');
+  chip.className = 'attach-chip';
+  chip.id = 'attachChip';
+  const label = document.createElement('span');
+  label.textContent = '📎 ' + file.name;
+  chip.appendChild(label);
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.textContent = '✕';
+  removeBtn.onclick = () => { pendingAttachment = null; renderAttachChip(null); };
+  chip.appendChild(removeBtn);
+  document.querySelector('footer').insertAdjacentElement('beforebegin', chip);
+}
+
+function setupFileInput(inputId, menuBtnId){
+  const fileInput = document.getElementById(inputId);
+  document.getElementById(menuBtnId).onclick = () => { fileInput.click(); attachMenu.classList.remove('open'); };
+  fileInput.onchange = () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    pendingAttachment = { name: file.name, file };
+    renderAttachChip(file);
+  };
+}
+setupFileInput('fileCameraInput', 'attachCamera');
+setupFileInput('filePhotosInput', 'attachPhotos');
+setupFileInput('fileDocsInput', 'attachDocs');
+
+document.addEventListener('click', (e) => {
+  if (!attachMenu.contains(e.target) && e.target.id !== 'attachBtn') attachMenu.classList.remove('open');
+});
+
+/* ---------------- Quick-action grid ---------------- */
+document.querySelectorAll('.modal-backdrop').forEach((bd) => {
+  bd.addEventListener('click', (e) => { if (e.target === bd) bd.classList.remove('open'); });
+});
+
+$('quickCall').onclick = () => $('callModal').classList.add('open');
+$('quickAlarm').onclick = () => {
+  $('alarmSoundInput').value = settings.notifSound || 'default';
+  $('alarmModal').classList.add('open');
+};
+$('quickCalendar').onclick = () => $('calendarModal').classList.add('open');
+$('quickMore').onclick = () => $('moreModal').classList.add('open');
+
+$('callGoBtn').onclick = () => {
+  const num = $('callNumberInput').value.replace(/[^\d+]/g, '');
+  if (!num) { toast('Enter a number first'); return; }
+  window.location.href = 'tel:' + num;
+  $('callModal').classList.remove('open');
+};
+$('callPickContactBtn').onclick = async () => {
+  const ok = await pickContactAndAct('call');
+  if (!ok) toast('Contact picker not available on this browser/device.');
+  else $('callModal').classList.remove('open');
+};
+
+$('alarmSetBtn').onclick = () => {
+  const val = $('alarmTimeInput').value;
+  if (!val) { toast('Pick a time first'); return; }
+  const [h, m] = val.split(':').map(Number);
+  const note = $('alarmNoteInput').value.trim();
+  const sound = $('alarmSoundInput').value;
+  beginAlarm(h, m, note, sound);
+  $('alarmNoteInput').value = '';
+  $('alarmModal').classList.remove('open');
+};
+
+$('calAddBtn').onclick = () => {
+  const title = $('calTitleInput').value.trim();
+  if (!title) { toast('Type a title first'); return; }
+  triggerCalendarAdd(title);
+  $('calendarModal').classList.remove('open');
+};
+
+document.querySelectorAll('#moreModal [data-min]').forEach((btn) => {
+  btn.onclick = () => {
+    const n = parseInt(btn.dataset.min, 10);
+    startTimerUI(n*60000, `Your ${n} minute timer is up.`);
+    toast(`Timer set for ${n} min`);
+    $('moreModal').classList.remove('open');
+  };
+});
+$('quickStopwatchBtn').onclick = () => {
+  startStopwatchUI();
+  $('moreModal').classList.remove('open');
+};
+$('quickNoteAddBtn').onclick = () => {
+  const v = $('quickNoteInput').value.trim();
+  if (!v) return;
+  notes.push(v);
+  store.set('voxa_notes', notes);
+  $('quickNoteInput').value = '';
+  toast('Note added');
+};
+$('quickNoteReadBtn').onclick = () => {
+  $('moreModal').classList.remove('open');
+  if (!notes.length) speak("You don't have any notes yet.");
+  else speak(`You have ${notes.length} note${notes.length>1?'s':''}: ${notes.join('. ')}`);
+};
+$('quickWeatherBtn').onclick = async () => {
+  $('moreModal').classList.remove('open');
+  if (!settings.city) { toast('Set a default city in Settings first'); return; }
+  await speak('Checking the weather…');
+  try { await speak(await getWeather(settings.city)); }
+  catch (e) { await speak("I couldn't fetch the weather right now."); }
+};
+$('quickJokeBtn').onclick = () => { $('moreModal').classList.remove('open'); speak(pick(JOKES)); };
+$('quickSettingsBtn').onclick = () => { $('moreModal').classList.remove('open'); $('modalBackdrop').classList.add('open'); };
+
+contToggle.onclick = () => {
+  loopMode = !loopMode;
+  contToggle.classList.toggle('active', loopMode);
+  if (loopMode) {
+    toast('Loop on — just talk. Say "stop" to end it.');
+    runLoop(++loopRunId);
+  } else {
+    loopRunId++;
+    if (listening) recognition.stop();
+    setStatus('idle', 'tap the mic to talk');
+  }
+};
+
+async function runLoop(myRunId){
+  while (loopMode && myRunId === loopRunId) {
+    let text = null;
+    try {
+      text = await listenOnce();
+    } catch (err) {
+      if (myRunId !== loopRunId) return;
+      const fatal = handleListenError(err);
+      if (fatal) { loopMode = false; contToggle.classList.remove('active'); return; }
+      await sleep(400);
+      continue;
+    }
+    if (myRunId !== loopRunId) return;
+    if (text) {
+      addLine('user', text);
+      await handleCommand(text);
+    }
+    if (myRunId !== loopRunId || !loopMode) return;
+    await sleep(300);
+  }
+}
+
+function handleListenError(err){
+  if (err === 'not-allowed' || err === 'service-not-allowed') {
+    toast('Microphone permission is blocked. Enable it in your browser site settings.');
+    return true;
+  }
+  return false;
+}
+
+/* ---------------- Fuzzy matching (tolerates speech-recognition mishears) ---------------- */
+function levenshtein(a, b){
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m+1}, () => new Array(n+1).fill(0));
+  for (let i=0;i<=m;i++) dp[i][0]=i;
+  for (let j=0;j<=n;j++) dp[0][j]=j;
+  for (let i=1;i<=m;i++){
+    for (let j=1;j<=n;j++){
+      dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j-1], dp[i-1][j], dp[i][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+function soundsLike(text, word, maxDist=1){
+  return text.split(/\s+/).some(tok => {
+    const clean = tok.replace(/[^a-z]/g,'');
+    if (!clean) return false;
+    if (clean === word) return true;
+    if (Math.abs(clean.length - word.length) > maxDist + 1) return false;
+    return levenshtein(clean, word) <= maxDist;
+  });
+}
+
+/* ---------------- Generic app launcher ----------------
+   Logic: browsers deliberately cannot see which apps are installed — that's a
+   privacy boundary every website runs into, not something to guess around. So
+   instead of guessing, we ask you once (see "Installed apps" in Settings) and
+   remember the answer: if you've checked an app, we go straight to its native
+   link; otherwise we open the website. Deterministic, no races, no silent
+   wrong guesses. */
+const APP_LINKS = {
+  youtube:   { scheme:'vnd.youtube://',  web:'https://youtube.com' },
+  instagram: { scheme:'instagram://app', web:'https://instagram.com' },
+  whatsapp:  { scheme:'whatsapp://',     web:'https://web.whatsapp.com' },
+  facebook:  { scheme:'fb://',           web:'https://facebook.com' },
+  messenger: { scheme:'fb-messenger://', web:'https://messenger.com' },
+  twitter:   { scheme:'twitter://',      web:'https://x.com' },
+  x:         { scheme:'twitter://',      web:'https://x.com' },
+  telegram:  { scheme:'tg://',           web:'https://t.me' },
+  snapchat:  { scheme:'snapchat://',     web:'https://snapchat.com' },
+  spotify:   { scheme:'spotify://',      web:'https://open.spotify.com' },
+  netflix:   { scheme:'nflx://',         web:'https://netflix.com' },
+  linkedin:  { scheme:'linkedin://',     web:'https://linkedin.com' },
+  paytm:     { scheme:'paytmmp://',      web:'https://paytm.com' },
+  phonepe:   { scheme:'phonepe://',      web:'https://phonepe.com' },
+  gpay:      { scheme:'tez://upi/',      web:'https://pay.google.com' },
+  uber:      { scheme:'uber://',         web:'https://m.uber.com' },
+  ola:       { scheme:'olacabs://',      web:'https://www.olacabs.com' },
+  swiggy:    { scheme:'swiggy://',       web:'https://www.swiggy.com' },
+  zomato:    { scheme:'zomato://',       web:'https://www.zomato.com' },
+  maps:      { web:'https://maps.google.com' },
+  photos:    { web:'https://photos.google.com' },
+  gmail:     { web:'https://mail.google.com' },
+  amazon:    { web:'https://amazon.in' },
+  github:    { web:'https://github.com' },
+  wikipedia: { web:'https://wikipedia.org' },
+  google:    { web:'https://google.com' },
+};
+
+function openApp(name){
+  const app = APP_LINKS[name];
+  if (!app) return false;
+  const installed = settings.installedApps && settings.installedApps[name];
+  if (installed && app.scheme) {
+    window.location.href = app.scheme;
+  } else {
+    window.open(app.web, '_blank');
+  }
+  return true;
+}
+
+const appGrid = $('appGrid');
+Object.keys(APP_LINKS).forEach((key) => {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.textContent = key;
+  btn.onclick = () => { openApp(key); $('moreModal').classList.remove('open'); };
+  appGrid.appendChild(btn);
+});
+
+// Populate the "Installed apps" checklist in Settings — only for apps that
+// actually have a native scheme to offer (pure-web entries have nothing to toggle).
+const installedAppsList = $('installedAppsList');
+Object.keys(APP_LINKS).forEach((key) => {
+  if (!APP_LINKS[key].scheme) return;
+  const label = document.createElement('label');
+  label.className = 'chip-check';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.dataset.app = key;
+  cb.checked = !!(settings.installedApps && settings.installedApps[key]);
+  const span = document.createElement('span');
+  span.textContent = key;
+  label.append(cb, span);
+  installedAppsList.appendChild(label);
+});
+
+// Uses the native Contact Picker (Android Chrome only).
+async function pickContactAndAct(action){
+  if (!('contacts' in navigator && 'ContactsManager' in window)) return false;
+  try {
+    const contacts = await navigator.contacts.select(['tel', 'name'], { multiple: false });
+    if (contacts.length && contacts[0].tel && contacts[0].tel.length) {
+      const number = contacts[0].tel[0];
+      if (action === 'call') window.location.href = 'tel:' + number;
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+function parseAlarmTime(text){
+  const m = text.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+  if (!m) return null;
+  let hour = parseInt(m[1], 10);
+  const minute = m[2] ? parseInt(m[2], 10) : 0;
+  const ampm = m[3];
+  if (hour > 23 || minute > 59) return null;
+  if (ampm === 'pm' && hour < 12) hour += 12;
+  if (ampm === 'am' && hour === 12) hour = 0;
+  return { hour, minute };
+}
+function formatClock(hour, minute){
+  const h = ((hour % 12) || 12);
+  const suffix = hour < 12 ? 'AM' : 'PM';
+  return `${h}:${String(minute).padStart(2,'0')} ${suffix}`;
+}
+
+function triggerCalendarAdd(title){
+  const start = new Date(Date.now() + 60*60*1000);
+  const end = new Date(start.getTime() + 60*60*1000);
+  const fmt = (d) => d.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
+  const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${fmt(start)}/${fmt(end)}`;
+  window.open(url, '_blank');
+  speak(`Opening Calendar to add "${title}". Adjust the time and save.`);
+}
+
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+/* ---------------- Active card engine (Timer / Alarm / Stopwatch share one display) ---------------- */
+const RING_CIRC = 653.45; // 2 * PI * 104, matches the SVG ring radius
+
+let activeMode = null;       // null | 'timer' | 'alarm' | 'stopwatch'
+let activeInterval = null;
+let activeDeadline = null;   // timestamp the timer/alarm ends at
+let activeDuration = null;   // total ms, used for ring progress + reset
+let activeRunning = false;
+let alarmSoundName = 'default';
+
+let stopwatchElapsedBeforePause = 0;
+let stopwatchStartedAt = null;
+let stopwatchRunning = false;
+let stopwatchLaps = [];
+
+function mkBtn(text, handler, cls){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = text;
+  if (cls) b.classList.add(cls);
+  b.onclick = handler;
+  return b;
+}
+function setRingProgress(fraction){
+  const ring = document.getElementById('activeRingFg');
+  if (ring) ring.style.strokeDashoffset = RING_CIRC * (1 - Math.max(0, Math.min(1, fraction)));
+}
+function updateDigits(ms){
+  const totalSec = Math.ceil(Math.max(0, ms) / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const text = h > 0
+    ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const el = document.getElementById('activeDigits');
+  if (el) el.textContent = text;
+}
+function showActiveCard(mode){
+  activeMode = mode;
+  const orbWrap = document.getElementById('orbWrap');
+  const statusText = document.getElementById('statusText');
+  const card = document.getElementById('activeCard');
+  if (orbWrap) orbWrap.style.display = 'none';
+  if (statusText) statusText.style.display = 'none';
+  if (card) card.style.display = 'flex';
+  const label = document.getElementById('activeLabel');
+  if (label) label.textContent = mode.toUpperCase();
+  const lapList = document.getElementById('lapList');
+  if (lapList) lapList.innerHTML = '';
+}
+function hideActiveCard(){
+  activeMode = null;
+  if (activeInterval) clearInterval(activeInterval);
+  activeInterval = null;
+  const card = document.getElementById('activeCard');
+  const orbWrap = document.getElementById('orbWrap');
+  const statusText = document.getElementById('statusText');
+  if (card) card.style.display = 'none';
+  if (orbWrap) orbWrap.style.display = '';
+  if (statusText) statusText.style.display = '';
+  setRingProgress(0);
+}
+
+/* ---- Timer ---- */
+function startTimerUI(ms, label){
+  showActiveCard('timer');
+  activeDuration = ms;
+  activeDeadline = Date.now() + ms;
+  activeRunning = true;
+  const sub = document.getElementById('activeSub');
+  if (sub) sub.textContent = label || '';
+  renderTimerControls(false);
+  tickTimer();
+  activeInterval = setInterval(tickTimer, 250);
+}
+function tickTimer(){
+  if (!activeRunning) return;
+  const remaining = Math.max(0, activeDeadline - Date.now());
+  updateDigits(remaining);
+  setRingProgress(activeDuration > 0 ? 1 - remaining / activeDuration : 1);
+  if (remaining <= 0) {
+    clearInterval(activeInterval);
+    activeInterval = null;
+    activeRunning = false;
+    const msg = document.getElementById('activeSub').textContent || 'Timer done';
+    toast('⏰ ' + msg);
+    speak(msg);
+    playTone(settings.notifSound || 'default', 4);
+    renderTimerControls(true);
+  }
+}
+function pauseResumeTimer(){
+  if (activeRunning) {
+    activeRunning = false;
+    activeDuration = activeDuration; // unchanged
+    activeDeadline = activeDeadline; // freeze — recompute remaining on resume
+    activePausedRemaining = Math.max(0, activeDeadline - Date.now());
+    clearInterval(activeInterval);
+    activeInterval = null;
+  } else {
+    activeDeadline = Date.now() + activePausedRemaining;
+    activeRunning = true;
+    activeInterval = setInterval(tickTimer, 250);
+  }
+  renderTimerControls(false);
+}
+let activePausedRemaining = 0;
+function resetTimerUI(){
+  clearInterval(activeInterval);
+  activeDeadline = Date.now() + activeDuration;
+  activeRunning = true;
+  activeInterval = setInterval(tickTimer, 250);
+  tickTimer();
+  renderTimerControls(false);
+}
+function renderTimerControls(done){
+  const c = document.getElementById('activeControls');
+  if (!c) return;
+  c.innerHTML = '';
+  if (done) {
+    c.append(
+      mkBtn('Reset', resetTimerUI),
+      mkBtn('Close', hideActiveCard, 'primary')
+    );
+    return;
+  }
+  c.append(
+    mkBtn(activeRunning ? 'Pause' : 'Resume', pauseResumeTimer),
+    mkBtn('Reset', resetTimerUI),
+    mkBtn('Cancel', hideActiveCard, 'danger')
+  );
+}
+
+/* ---- Alarm ---- */
+async function ensureNotifPermission(){
+  try {
+    if (!('Notification' in window)) return false;
+    if (Notification.permission === 'granted') return true;
+    if (Notification.permission === 'denied') return false;
+    const res = await Notification.requestPermission();
+    return res === 'granted';
+  } catch (e) { return false; }
+}
+function notifyUser(title, body){
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, { body, icon: 'icon-192.png' });
+    }
+  } catch (e) {}
+}
+async function beginAlarm(hour, minute, note, sound){
+  const now = new Date();
+  const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
+  if (target.getTime() <= now.getTime()) target.setDate(target.getDate() + 1);
+  const granted = await ensureNotifPermission();
+  alarmSoundName = sound || settings.notifSound || 'default';
+  showActiveCard('alarm');
+  activeDuration = target.getTime() - Date.now();
+  activeDeadline = target.getTime();
+  activeRunning = true;
+  const label = note ? note : `Alarm for ${formatClock(hour, minute)}`;
+  document.getElementById('activeSub').textContent = label;
+  renderAlarmControls(false);
+  tickAlarm();
+  activeInterval = setInterval(tickAlarm, 250);
+  const warn = granted ? '' : " Notifications aren't enabled, so I'll rely on sound and this screen — keep Voxa open for it to go off.";
+  await speak(`Alarm set for ${formatClock(hour, minute)}.${warn}`);
+}
+function tickAlarm(){
+  if (!activeRunning) return;
+  const remaining = Math.max(0, activeDeadline - Date.now());
+  updateDigits(remaining);
+  setRingProgress(activeDuration > 0 ? 1 - remaining / activeDuration : 1);
+  if (remaining <= 0) {
+    clearInterval(activeInterval);
+    activeInterval = null;
+    activeRunning = false;
+    const note = document.getElementById('activeSub').textContent;
+    playTone(alarmSoundName, 6);
+    notifyUser(note || 'Alarm', note ? note : "Time's up!");
+    renderAlarmControls(true);
+  }
+}
+function renderAlarmControls(done){
+  const c = document.getElementById('activeControls');
+  if (!c) return;
+  c.innerHTML = '';
+  if (done) {
+    const note = document.getElementById('activeSub').textContent;
+    c.append(
+      mkBtn('Snooze 5 min', () => {
+        const t = new Date(Date.now() + 5*60000);
+        beginAlarm(t.getHours(), t.getMinutes(), note, alarmSoundName);
+      }),
+      mkBtn('Dismiss', hideActiveCard, 'primary')
+    );
+    return;
+  }
+  c.append(mkBtn('Cancel alarm', hideActiveCard, 'danger'));
+}
+
+/* ---- Stopwatch ---- */
+function startStopwatchUI(){
+  showActiveCard('stopwatch');
+  stopwatchElapsedBeforePause = 0;
+  stopwatchStartedAt = null;
+  stopwatchRunning = false;
+  stopwatchLaps = [];
+  document.getElementById('activeSub').textContent = '';
+  updateDigits(0);
+  setRingProgress(0);
+  renderStopwatchControls();
+}
+function tickStopwatch(){
+  const elapsed = stopwatchElapsedBeforePause + (stopwatchRunning ? Date.now() - stopwatchStartedAt : 0);
+  updateDigits(elapsed);
+}
+function toggleStopwatch(){
+  if (stopwatchRunning) {
+    stopwatchElapsedBeforePause += Date.now() - stopwatchStartedAt;
+    stopwatchRunning = false;
+    clearInterval(activeInterval);
+    activeInterval = null;
+  } else {
+    stopwatchStartedAt = Date.now();
+    stopwatchRunning = true;
+    activeInterval = setInterval(tickStopwatch, 250);
+  }
+  renderStopwatchControls();
+}
+function lapStopwatch(){
+  const elapsed = stopwatchElapsedBeforePause + (stopwatchRunning ? Date.now() - stopwatchStartedAt : 0);
+  stopwatchLaps.unshift(elapsed);
+  renderLaps();
+}
+function resetStopwatch(){
+  clearInterval(activeInterval);
+  activeInterval = null;
+  stopwatchElapsedBeforePause = 0;
+  stopwatchStartedAt = null;
+  stopwatchRunning = false;
+  stopwatchLaps = [];
+  updateDigits(0);
+  setRingProgress(0);
+  renderLaps();
+  renderStopwatchControls();
+}
+function renderLaps(){
+  const list = document.getElementById('lapList');
+  if (!list) return;
+  list.innerHTML = '';
+  stopwatchLaps.forEach((ms, i) => {
+    const row = document.createElement('div');
+    row.className = 'lap-row';
+    const totalSec = Math.floor(ms / 1000);
+    const m = Math.floor(totalSec / 60), s = totalSec % 60, cs = Math.floor((ms % 1000) / 10);
+    const lapSpan = document.createElement('span');
+    lapSpan.textContent = `Lap ${stopwatchLaps.length - i}`;
+    const timeSpan = document.createElement('span');
+    timeSpan.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(cs).padStart(2,'0')}`;
+    row.append(lapSpan, timeSpan);
+    list.appendChild(row);
+  });
+}
+function renderStopwatchControls(){
+  const c = document.getElementById('activeControls');
+  if (!c) return;
+  c.innerHTML = '';
+  c.append(
+    mkBtn(stopwatchRunning ? 'Pause' : 'Start', toggleStopwatch, stopwatchRunning ? '' : 'primary'),
+    mkBtn('Lap', lapStopwatch),
+    mkBtn('Reset', resetStopwatch),
+    mkBtn('Close', hideActiveCard, 'danger')
+  );
+}
+
+/* ---- Synthesized alert tones (no external audio files, so nothing to fail to load) ---- */
+const SOUND_PRESETS = {
+  default: [880],
+  chime: [660, 784, 988],
+  bell: [523, 659, 784],
+  digital: [1000, 1200, 1000]
+};
+function playTone(name, times){
+  times = times || 3;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new Ctx();
+    const freqs = SOUND_PRESETS[name] || SOUND_PRESETS.default;
+    let t = ctx.currentTime;
+    for (let rep = 0; rep < times; rep++) {
+      freqs.forEach((f) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = f;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.001, t);
+        gain.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+        osc.start(t);
+        osc.stop(t + 0.32);
+        t += 0.34;
+      });
+      t += 0.2;
+    }
+  } catch (e) { /* Web Audio unsupported — silent, notification/toast still fire */ }
+}
+
+function safeMath(text){
+  let t = text
+    .replace(/what(?:'s| is)?/g, '')
+    .replace(/calculate/g, '')
+    .replace(/plus/g, '+')
+    .replace(/minus/g, '-')
+    .replace(/times|multiplied by|x/g, '*')
+    .replace(/divided by/g, '/')
+    .trim();
+  if (!/^[0-9+\-*/(). ]+$/.test(t)) return null;
+  try {
+    const result = Function('"use strict"; return (' + t + ')')();
+    if (typeof result === 'number' && isFinite(result)) return Math.round(result * 1000) / 1000;
+  } catch(e){}
+  return null;
+}
+
+async function getWeather(city){
+  const geo = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(city) + '&count=1');
+  const geoData = await geo.json();
+  if (!geoData.results || !geoData.results.length) throw new Error('city not found');
+  const { latitude, longitude, name } = geoData.results[0];
+  const wres = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+  const wdata = await wres.json();
+  const c = wdata.current_weather;
+  return `${name}: ${Math.round(c.temperature)}°C, ${weatherCodeToText(c.weathercode)}, wind ${Math.round(c.windspeed)} km/h.`;
+}
+function weatherCodeToText(code){
+  const map = {0:'clear sky',1:'mostly clear',2:'partly cloudy',3:'overcast',45:'foggy',48:'foggy',
+  51:'light drizzle',53:'drizzle',55:'heavy drizzle',61:'light rain',63:'rain',65:'heavy rain',
+  71:'light snow',73:'snow',75:'heavy snow',80:'rain showers',81:'rain showers',82:'violent showers',
+  95:'thunderstorm',96:'thunderstorm with hail',99:'severe thunderstorm'};
+  return map[code] || 'unusual conditions';
+}
+
+let conversationHistory = [];
+
+function fileToBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// llama-3.2-11b-vision-preview was decommissioned by Groq — this is the
+// current live production vision model as of this build. Groq's model
+// lineup does shift over time; if this ever starts failing again, that's
+// a Groq-side deprecation, and the try/catch below still degrades gracefully.
+async function askAIVision(question, file){
+  const base64 = await fileToBase64(file);
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + settings.apiKey },
+    body: JSON.stringify({
+      model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: question },
+          { type: 'image_url', image_url: { url: `data:${file.type};base64,${base64}` } }
+        ]
+      }],
+      max_tokens: 400
+    })
+  });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error('vision API error ' + res.status + ' ' + errBody.slice(0, 200));
+  }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content?.trim() || "I couldn't describe that image.";
+}
+
+async function askAI(question){
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + settings.apiKey },
+    body: JSON.stringify({
+      model: 'openai/gpt-oss-120b',
+      messages: [
+        {role:'system', content:'You are Voxa, a concise voice assistant. Answer in 1-3 short spoken sentences, no markdown, no lists.'},
+        ...conversationHistory,
+        {role:'user', content: question}
+      ],
+      max_tokens: 300
+    })
+  });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error('API error ' + res.status + ' ' + errBody.slice(0, 200));
+  }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content?.trim() || "I don't have an answer for that.";
+}
+
+/* ---------------- Document text extraction (images use vision above; these are for PDFs/Word/plain text) ---------------- */
+let pdfjsReady = null;
+function loadScript(src){
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('failed to load ' + src));
+    document.head.appendChild(s);
+  });
+}
+async function ensurePdfJs(){
+  if (window.pdfjsLib) return;
+  if (!pdfjsReady) {
+    pdfjsReady = loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js').then(() => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.worker.min.js';
+    });
+  }
+  await pdfjsReady;
+}
+async function extractPdfText(file){
+  await ensurePdfJs();
+  const buf = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+  let text = '';
+  const maxPages = Math.min(pdf.numPages, 20);
+  for (let i = 1; i <= maxPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map((it) => it.str).join(' ') + '\n';
+  }
+  return text;
+}
+
+let mammothReady = null;
+async function ensureMammoth(){
+  if (window.mammoth) return;
+  if (!mammothReady) {
+    mammothReady = loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js');
+  }
+  await mammothReady;
+}
+async function extractDocxText(file){
+  await ensureMammoth();
+  const buf = await file.arrayBuffer();
+  const result = await window.mammoth.extractRawText({ arrayBuffer: buf });
+  return result.value;
+}
+
+// Reads any attached image or document and asks the AI about it, using the
+// user's own message as the question (or a sensible default). Returns the
+// answer as plain text — callers speak/display it and handle failures.
+async function analyzeAttachment(file, userText){
+  const question = userText || 'Describe this in detail.';
+  if (file.type.startsWith('image/')) {
+    return await askAIVision(question, file);
+  }
+  const name = file.name.toLowerCase();
+  let docText = '';
+  if (name.endsWith('.pdf') || file.type === 'application/pdf') {
+    docText = await extractPdfText(file);
+  } else if (name.endsWith('.docx')) {
+    docText = await extractDocxText(file);
+  } else {
+    // Plain text and text-like files (.txt, .md, .csv, .json, code files, etc.)
+    docText = await file.text();
+  }
+  docText = (docText || '').trim();
+  if (!docText) throw new Error('no extractable text found in this file');
+  const prompt = `${question}\n\nDocument content (from "${file.name}"):\n${docText.slice(0, 8000)}`;
+  return await askAI(prompt);
+}
+
+const JOKES = [
+  "Why do programmers prefer dark mode? Because light attracts bugs.",
+  "I told my computer I needed a break, and it said no problem — it froze immediately.",
+  "Why did the developer go broke? Because they used up all their cache.",
+  "There are 10 types of people: those who understand binary, and those who don't.",
+  "Why was the phone wearing glasses? It lost all its contacts."
+];
+
+/* ---------------- Command handling ---------------- */
+async function handleCommand(raw, attachment){
+  const text = raw.toLowerCase();
+
+  if (attachment && attachment.file) {
+    if (!settings.apiKey) {
+      await speak("I see a file attached, but I need a free AI key in Settings to read it. Continuing with just your text.");
+    } else {
+      const isImage = attachment.file.type.startsWith('image/');
+      await speak(isImage ? 'Looking at the image…' : 'Reading the document…');
+      try {
+        const answer = await analyzeAttachment(attachment.file, raw);
+        conversationHistory.push({role:'user', content: raw || `(sent a file: ${attachment.file.name})`});
+        conversationHistory.push({role:'assistant', content: answer});
+        if (conversationHistory.length > 10) conversationHistory.splice(0, conversationHistory.length - 10);
+        await speak(answer);
+        return;
+      } catch (e) {
+        await speak(`I couldn't read that file just now (${e.message}). Continuing with your text instead.`);
+      }
+    }
+  }
+
+  if (/^(stop|cancel|never ?mind|quiet|shut up)\b/.test(text)) {
+    synth.cancel();
+    loopMode = false;
+    loopRunId++;
+    contToggle.classList.remove('active');
+    if (listening) recognition.stop();
+    await speak('Okay, stopping.');
+    return;
+  }
+
+  if (/^(hi|hello|hey)\b/.test(text)) {
+    await speak(pick(['Hey there!', 'Hello! What can I do for you?', "Hi! I'm listening."]));
+    return;
+  }
+
+  if (/what('?s| is)?\s*(the)?\s*time/.test(text) || text.includes('current time')) {
+    const now = new Date();
+    await speak(`It's ${now.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}.`);
+    return;
+  }
+
+  if (/what('?s| is)?\s*(the)?\s*date|what day is it/.test(text)) {
+    const now = new Date();
+    await speak(`Today is ${now.toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'})}.`);
+    return;
+  }
+
+  if (/\d/.test(text) && /(plus|minus|times|divided by|multiplied by|calculate|what is \d|percent of)/.test(text)) {
+    const result = safeMath(text);
+    if (result !== null) { await speak(`That's ${result}.`); return; }
+  }
+
+  // alarm — sends a real notification + sound when it fires (while Voxa stays open)
+  if (/set (?:an |a )?alarm/.test(text) || /wake me/.test(text)) {
+    const t = parseAlarmTime(text);
+    if (!t) { await speak("Tell me a time — like 'set an alarm for 7 am'."); return; }
+    await beginAlarm(t.hour, t.minute, '', settings.notifSound || 'default');
+    return;
+  }
+
+  const timerMatch = text.match(/(?:set a? ?)?timer(?: for)? (\d+)\s*(second|sec|minute|min|hour)/);
+  if (timerMatch) {
+    const n = parseInt(timerMatch[1]);
+    const unit = timerMatch[2];
+    const ms = unit.startsWith('sec') ? n*1000 : unit.startsWith('min') ? n*60000 : n*3600000;
+    startTimerUI(ms, `Your ${n} ${unit}${n>1?'s':''} timer is up.`);
+    await speak(`Timer set for ${n} ${unit}${n>1?'s':''}.`);
+    return;
+  }
+
+  const noteMatch = text.match(/(?:take a note|remember that|add a note|note that)\s+(.*)/);
+  if (noteMatch && noteMatch[1]) {
+    notes.push(noteMatch[1]);
+    store.set('voxa_notes', notes);
+    await speak('Got it, noted.');
+    return;
+  }
+
+  if (/read (my|the) notes|what are my notes|list my notes/.test(text)) {
+    if (notes.length === 0) { await speak("You don't have any notes yet."); }
+    else { await speak(`You have ${notes.length} note${notes.length>1?'s':''}: ${notes.join('. ')}`); }
+    return;
+  }
+
+  if (/joke/.test(text) || soundsLike(text, 'joke', 2)) {
+    await speak(pick(JOKES));
+    return;
+  }
+
+  // call a number — "call 9876543210"
+  const callMatch = text.match(/call\s+([\d +\-]{6,})/);
+  if (callMatch) {
+    const number = callMatch[1].replace(/[^\d+]/g, '');
+    window.location.href = 'tel:' + number;
+    await speak(`Calling ${number}.`);
+    return;
+  }
+  if (/^call\b/.test(text)) {
+    const ok = await pickContactAndAct('call');
+    if (!ok) await speak("Say a phone number, like 'call' followed by the number, or use the contact picker in Settings.");
+    return;
+  }
+
+  const waMatch = text.match(/whatsapp\s+([\d +\-]{6,})(?:\s+saying\s+(.*))?/);
+  if (waMatch) {
+    const number = waMatch[1].replace(/[^\d+]/g, '');
+    const msg = waMatch[2] || '';
+    window.open(`https://wa.me/${number}${msg ? '?text=' + encodeURIComponent(msg) : ''}`, '_blank');
+    await speak('Opening WhatsApp — tap send to deliver it.');
+    return;
+  }
+
+  const emailMatch = text.match(/(?:send an? )?email(?: about| regarding)?\s*(.*)/);
+  if (emailMatch && /email/.test(text)) {
+    const subject = emailMatch[1] || '';
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}`;
+    await speak('Opening your email app.');
+    return;
+  }
+
+  const calMatch = text.match(/(?:add (?:a )?calendar event|add to calendar|schedule)\s+(.*)/);
+  if (calMatch && calMatch[1]) {
+    triggerCalendarAdd(calMatch[1]);
+    return;
+  }
+
+  // generic "open X" — checks the app-launcher table
+  const openMatch = text.match(/open (.+)/);
+  if (openMatch) {
+    const target = openMatch[1].trim();
+    const key = Object.keys(APP_LINKS).find(k => target.includes(k));
+    if (key) {
+      openApp(key);
+      await speak(`Opening ${key}.`);
+      return;
+    }
+  }
+
+  const searchMatch = text.match(/(?:search for|search|google)\s+(.*)/);
+  if (searchMatch && searchMatch[1]) {
+    window.open('https://www.google.com/search?q=' + encodeURIComponent(searchMatch[1]), '_blank');
+    await speak(`Searching for ${searchMatch[1]}.`);
+    return;
+  }
+
+  if (/weather/.test(text)) {
+    const cityGuess = (text.match(/weather (?:in|at|for) (.+)/) || [])[1] || settings.city;
+    if (!cityGuess) { await speak('Which city? You can also set a default city in Settings.'); return; }
+    await speak('Checking the weather…');
+    try { await speak(await getWeather(cityGuess)); }
+    catch (e) { await speak("I couldn't fetch the weather right now."); }
+    return;
+  }
+
+  if (settings.apiKey) {
+    await speak('Let me think…');
+    try {
+      const answer = await askAI(raw);
+      conversationHistory.push({role:'user', content: raw});
+      conversationHistory.push({role:'assistant', content: answer});
+      if (conversationHistory.length > 10) conversationHistory.splice(0, conversationHistory.length - 10);
+      await speak(answer);
+    } catch (e) {
+      await speak("I couldn't reach the AI service just now.");
+    }
+    return;
+  }
+
+  await speak("I didn't quite catch a command I know. Try 'what time is it', or add a free AI key in Settings so I can answer anything.");
+}
+
+window.addEventListener('load', () => {
+  try {
+    if ('serviceWorker' in navigator && navigator.serviceWorker) {
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    }
+  } catch (e) { /* ignore — offline caching is a nice-to-have, never blocks the app */ }
+  $('versionBadge').textContent = 'v' + VOXA_VERSION;
+  addLine('assistant', "Hi, I'm Voxa. Tap the mic and talk to me.");
+});
+</script>
+</body>
+</html>
