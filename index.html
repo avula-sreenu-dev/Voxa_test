@@ -79,6 +79,15 @@
   }
   .icon-btn:active{background:var(--panel-2);}
 
+  .pinned-top{
+    flex-shrink:0;
+    display:none;
+    flex-direction:column;
+  }
+  .pinned-top.active{display:flex;}
+  .pinned-top .quick-grid{
+    position:static;
+  }
   .scroll-region{
     flex:1;
     min-height:0;
@@ -487,8 +496,10 @@
     <div class="icon-btn" id="settingsBtn">⚙</div>
   </header>
 
+  <div class="pinned-top" id="pinnedTop"></div>
+
   <div class="scroll-region" id="scrollRegion">
-    <div class="stage">
+    <div class="stage" id="stageBlock">
       <div class="status" id="statusText">tap the mic to talk</div>
       <div class="orb-wrap" id="orbWrap">
         <svg class="orb" viewBox="0 0 240 240">
@@ -514,7 +525,7 @@
       </div>
     </div>
 
-    <div class="quick-grid">
+    <div class="quick-grid" id="quickGridBlock">
       <div class="quick-btn" id="quickCall"><span class="quick-icon">📞</span><span class="quick-label">CALL</span></div>
       <div class="quick-btn" id="quickAlarm"><span class="quick-icon">⏰</span><span class="quick-label">CLOCK</span></div>
       <div class="quick-btn" id="quickCalendar"><span class="quick-icon">📅</span><span class="quick-label">CALENDAR</span></div>
@@ -523,6 +534,7 @@
 
     <div class="transcript" id="transcript"></div>
   </div>
+
 
   <footer>
     <button class="cont-toggle" id="contToggle" title="Loop mode">LOOP</button>
@@ -576,10 +588,6 @@
       <option value="bell">Bell</option>
       <option value="digital">Digital</option>
     </select>
-
-    <label>Installed apps</label>
-    <p class="sub" style="margin-bottom:8px;">Browsers can't see your installed apps — there's no such permission on any website. Check off what you actually have, once, and Voxa will open the real app instead of the website for those.</p>
-    <div id="installedAppsList" class="commands-list"></div>
 
     <div class="row">
       <button class="btn ghost" id="clearNotesBtn" type="button">Clear notes</button>
@@ -698,7 +706,7 @@
 
 <script>
 /* ---------------- Version — check this number in the app to confirm you're on the latest file ---------------- */
-const VOXA_VERSION = '1.7.0';
+const VOXA_VERSION = '1.8.0';
 
 /* ---------------- Utility ---------------- */
 const $ = (id) => document.getElementById(id);
@@ -746,8 +754,7 @@ const store = {
 };
 
 let settings = store.get('voxa_settings', {
-  city:'', apiKey:'', voiceKey:'', notifSound:'default',
-  installedApps: { whatsapp:true, youtube:true, spotify:true, instagram:true }
+  city:'', apiKey:'', voiceKey:'', notifSound:'default'
 });
 let notes = store.get('voxa_notes', []);
 
@@ -763,10 +770,6 @@ $('saveSettingsBtn').onclick = () => {
   settings.apiKey = $('apiKeyInput').value.trim();
   settings.voiceKey = $('voiceSelect').value;
   settings.notifSound = $('defaultSoundSelect').value;
-  settings.installedApps = settings.installedApps || {};
-  document.querySelectorAll('#installedAppsList input[type=checkbox]').forEach((cb) => {
-    settings.installedApps[cb.dataset.app] = cb.checked;
-  });
   store.set('voxa_settings', settings);
   $('modalBackdrop').classList.remove('open');
   toast('Settings saved');
@@ -1153,50 +1156,51 @@ function soundsLike(text, word, maxDist=1){
 }
 
 /* ---------------- Generic app launcher ----------------
-   Logic: browsers deliberately cannot see which apps are installed — that's a
-   privacy boundary every website runs into, not something to guess around. So
-   instead of guessing, we ask you once (see "Installed apps" in Settings) and
-   remember the answer: if you've checked an app, we go straight to its native
-   link; otherwise we open the website. Deterministic, no races, no silent
-   wrong guesses. */
+   Real fix, not a guess: plain https:// links to services like YouTube,
+   Instagram, Spotify, and WhatsApp already auto-redirect to the installed
+   native app — that's Android/iOS's own "Verified Links" system doing OS-level
+   interception, completely independent of any JS here. That's why these
+   worked from the very first version with zero special code.
+   Trying to force a bare custom scheme (phonepe://, linkedin://, etc.)
+   directly is what caused apps to flash open and instantly close — those
+   apps expect a specific path/parameters after the scheme, not a bare
+   scheme, and firing an incomplete deep link left a broken half-launched
+   activity behind. So: always open the real web URL. For apps with Verified
+   Links configured, the OS takes over silently. For apps without it, this is
+   a safe, working fallback instead of a broken native-launch attempt. */
 const APP_LINKS = {
-  youtube:   { scheme:'vnd.youtube://',  web:'https://youtube.com' },
-  instagram: { scheme:'instagram://app', web:'https://instagram.com' },
-  whatsapp:  { scheme:'whatsapp://',     web:'https://web.whatsapp.com' },
-  facebook:  { scheme:'fb://',           web:'https://facebook.com' },
-  messenger: { scheme:'fb-messenger://', web:'https://messenger.com' },
-  twitter:   { scheme:'twitter://',      web:'https://x.com' },
-  x:         { scheme:'twitter://',      web:'https://x.com' },
-  telegram:  { scheme:'tg://',           web:'https://t.me' },
-  snapchat:  { scheme:'snapchat://',     web:'https://snapchat.com' },
-  spotify:   { scheme:'spotify://',      web:'https://open.spotify.com' },
-  netflix:   { scheme:'nflx://',         web:'https://netflix.com' },
-  linkedin:  { scheme:'linkedin://',     web:'https://linkedin.com' },
-  paytm:     { scheme:'paytmmp://',      web:'https://paytm.com' },
-  phonepe:   { scheme:'phonepe://',      web:'https://phonepe.com' },
-  gpay:      { scheme:'tez://upi/',      web:'https://pay.google.com' },
-  uber:      { scheme:'uber://',         web:'https://m.uber.com' },
-  ola:       { scheme:'olacabs://',      web:'https://www.olacabs.com' },
-  swiggy:    { scheme:'swiggy://',       web:'https://www.swiggy.com' },
-  zomato:    { scheme:'zomato://',       web:'https://www.zomato.com' },
-  maps:      { web:'https://maps.google.com' },
-  photos:    { web:'https://photos.google.com' },
-  gmail:     { web:'https://mail.google.com' },
-  amazon:    { web:'https://amazon.in' },
-  github:    { web:'https://github.com' },
-  wikipedia: { web:'https://wikipedia.org' },
-  google:    { web:'https://google.com' },
+  youtube:   'https://youtube.com',
+  instagram: 'https://instagram.com',
+  whatsapp:  'https://web.whatsapp.com',
+  facebook:  'https://facebook.com',
+  messenger: 'https://messenger.com',
+  twitter:   'https://x.com',
+  x:         'https://x.com',
+  telegram:  'https://t.me',
+  snapchat:  'https://snapchat.com',
+  spotify:   'https://open.spotify.com',
+  netflix:   'https://netflix.com',
+  linkedin:  'https://linkedin.com',
+  paytm:     'https://paytm.com',
+  phonepe:   'https://phonepe.com',
+  gpay:      'https://pay.google.com',
+  uber:      'https://m.uber.com',
+  ola:       'https://www.olacabs.com',
+  swiggy:    'https://www.swiggy.com',
+  zomato:    'https://www.zomato.com',
+  maps:      'https://maps.google.com',
+  photos:    'https://photos.google.com',
+  gmail:     'https://mail.google.com',
+  amazon:    'https://amazon.in',
+  github:    'https://github.com',
+  wikipedia: 'https://wikipedia.org',
+  google:    'https://google.com',
 };
 
 function openApp(name){
-  const app = APP_LINKS[name];
-  if (!app) return false;
-  const installed = settings.installedApps && settings.installedApps[name];
-  if (installed && app.scheme) {
-    window.location.href = app.scheme;
-  } else {
-    window.open(app.web, '_blank');
-  }
+  const web = APP_LINKS[name];
+  if (!web) return false;
+  window.open(web, '_blank');
   return true;
 }
 
@@ -1207,23 +1211,6 @@ Object.keys(APP_LINKS).forEach((key) => {
   btn.textContent = key;
   btn.onclick = () => { openApp(key); $('moreModal').classList.remove('open'); };
   appGrid.appendChild(btn);
-});
-
-// Populate the "Installed apps" checklist in Settings — only for apps that
-// actually have a native scheme to offer (pure-web entries have nothing to toggle).
-const installedAppsList = $('installedAppsList');
-Object.keys(APP_LINKS).forEach((key) => {
-  if (!APP_LINKS[key].scheme) return;
-  const label = document.createElement('label');
-  label.className = 'chip-check';
-  const cb = document.createElement('input');
-  cb.type = 'checkbox';
-  cb.dataset.app = key;
-  cb.checked = !!(settings.installedApps && settings.installedApps[key]);
-  const span = document.createElement('span');
-  span.textContent = key;
-  label.append(cb, span);
-  installedAppsList.appendChild(label);
 });
 
 // Uses the native Contact Picker (Android Chrome only).
@@ -1306,6 +1293,29 @@ function updateDigits(ms){
   const el = document.getElementById('activeDigits');
   if (el) el.textContent = text;
 }
+function pinTopBlocks(){
+  const pinnedTop = document.getElementById('pinnedTop');
+  const stageBlock = document.getElementById('stageBlock');
+  const quickGridBlock = document.getElementById('quickGridBlock');
+  if (pinnedTop && stageBlock && quickGridBlock && !pinnedTop.contains(stageBlock)) {
+    pinnedTop.appendChild(stageBlock);
+    pinnedTop.appendChild(quickGridBlock);
+    pinnedTop.classList.add('active');
+  }
+}
+function unpinTopBlocks(){
+  const scrollRegion = document.getElementById('scrollRegion');
+  const stageBlock = document.getElementById('stageBlock');
+  const quickGridBlock = document.getElementById('quickGridBlock');
+  const transcriptEl2 = document.getElementById('transcript');
+  const pinnedTop = document.getElementById('pinnedTop');
+  if (scrollRegion && stageBlock && quickGridBlock && transcriptEl2 && pinnedTop && pinnedTop.contains(stageBlock)) {
+    scrollRegion.insertBefore(stageBlock, transcriptEl2);
+    scrollRegion.insertBefore(quickGridBlock, transcriptEl2);
+  }
+  if (pinnedTop) pinnedTop.classList.remove('active');
+}
+
 function showActiveCard(mode){
   activeMode = mode;
   const orbWrap = document.getElementById('orbWrap');
@@ -1318,6 +1328,7 @@ function showActiveCard(mode){
   if (label) label.textContent = mode.toUpperCase();
   const lapList = document.getElementById('lapList');
   if (lapList) lapList.innerHTML = '';
+  pinTopBlocks();
 }
 function hideActiveCard(){
   activeMode = null;
@@ -1330,6 +1341,7 @@ function hideActiveCard(){
   if (orbWrap) orbWrap.style.display = '';
   if (statusText) statusText.style.display = '';
   setRingProgress(0);
+  unpinTopBlocks();
 }
 
 /* ---- Timer ---- */
@@ -1628,13 +1640,19 @@ function fileToBase64(file){
 // current live production vision model as of this build. Groq's model
 // lineup does shift over time; if this ever starts failing again, that's
 // a Groq-side deprecation, and the try/catch below still degrades gracefully.
+// llama-3.2-11b-vision-preview and meta-llama/llama-4-maverick-17b-128e-instruct
+// were both decommissioned by Groq (Feb/June 2026). qwen/qwen3.6-27b is the
+// current live vision-capable model, confirmed directly against Groq's own
+// docs. Groq deprecates models on a fast, ongoing schedule — if this ever
+// fails again, that's them retiring a model, and the catch below still
+// degrades gracefully instead of leaving a raw error in the chat.
 async function askAIVision(question, file){
   const base64 = await fileToBase64(file);
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + settings.apiKey },
     body: JSON.stringify({
-      model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+      model: 'qwen/qwen3.6-27b',
       messages: [{
         role: 'user',
         content: [
