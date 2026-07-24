@@ -79,6 +79,86 @@
   }
   .icon-btn:active{background:var(--panel-2);}
 
+  .sidebar-backdrop{
+    position:fixed;inset:0;background:rgba(6,7,12,0.6);z-index:40;display:none;
+  }
+  .sidebar-backdrop.open{display:block;}
+  .sidebar{
+    position:fixed;top:0;left:0;bottom:0;
+    width:280px;max-width:82vw;
+    background:var(--panel);
+    border-right:1px solid #232637;
+    display:flex;flex-direction:column;
+    padding:16px 14px calc(16px + env(safe-area-inset-bottom));
+    transform:translateX(-100%);
+    transition:transform 0.25s ease;
+    z-index:41;
+  }
+  .sidebar-backdrop.open .sidebar{transform:translateX(0);}
+  .sidebar-header{display:flex;gap:8px;align-items:center;margin-bottom:14px;}
+  .sidebar-header .btn{flex:1;padding:10px;}
+  #sidebarSearch{margin-bottom:12px;}
+  .sidebar-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px;}
+  .sidebar-month-heading{
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--muted);padding:12px 8px 6px;border-top:1px solid #232637;margin-top:6px;
+  }
+  .sidebar-month-heading:first-child{border-top:none;margin-top:0;}
+  .sidebar-item{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    padding:10px 8px;border-radius:10px;cursor:pointer;color:var(--text);font-size:13px;
+  }
+  .sidebar-item:active{background:var(--panel-2);}
+  .sidebar-item.current{background:var(--panel-2);border:1px solid #262a3d;}
+  .sidebar-item .title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+  .sidebar-item .date{font-size:11px;color:var(--muted);flex-shrink:0;font-family:'JetBrains Mono',monospace;}
+  .alarm-ring-overlay{
+    position:fixed;inset:0;
+    background:linear-gradient(160deg, #2a1020 0%, #0A0B10 60%);
+    z-index:60;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .alarm-ring-content{
+    display:flex;flex-direction:column;align-items:center;gap:14px;
+    width:100%;max-width:360px;
+  }
+  .alarm-ring-time{
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:56px;color:var(--text);
+  }
+  .alarm-ring-title{
+    font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:20px;color:var(--text);text-align:center;
+  }
+  .alarm-ring-message{
+    font-family:'Inter',sans-serif;font-size:14px;color:var(--muted);text-align:center;
+  }
+  .alarm-slider-track{
+    margin-top:30px;
+    width:100%;
+    height:64px;
+    border-radius:32px;
+    background:var(--panel-2);
+    border:1px solid #262a3d;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 20px;
+    position:relative;
+  }
+  .slider-label-left, .slider-label-right{
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:0.5px;
+  }
+  .alarm-slider-handle{
+    position:absolute;left:50%;top:50%;
+    transform:translate(-50%,-50%);
+    width:52px;height:52px;border-radius:50%;
+    background:linear-gradient(135deg, var(--violet), #5B3FE0);
+    display:flex;align-items:center;justify-content:center;
+    font-size:22px;
+    cursor:grab;
+    touch-action:none;
+    box-shadow:0 6px 18px rgba(124,92,255,0.45);
+  }
   .pinned-top{
     flex-shrink:0;
     display:none;
@@ -169,6 +249,20 @@
     border:1px solid #1e2130;
     color:#D6D8E4;
   }
+  .msg-actions{display:flex;gap:4px;margin-top:8px;}
+  .msg-action-btn{
+    background:none;border:none;color:var(--muted);
+    font-size:13px;padding:4px 7px;border-radius:8px;cursor:pointer;
+  }
+  .msg-action-btn:active{background:var(--panel-2);}
+  .msg-action-btn.active{color:var(--cyan);}
+  .speech-control{
+    position:absolute;top:2px;left:50%;transform:translateX(-50%);
+    width:34px;height:34px;border-radius:50%;
+    background:var(--panel-2);border:1px solid #262a3d;color:var(--text);
+    font-size:14px;cursor:pointer;display:none;
+    align-items:center;justify-content:center;z-index:5;
+  }
   .line .tag{
     display:block;
     font-family:'JetBrains Mono',monospace;
@@ -251,7 +345,7 @@
     text-transform:uppercase;letter-spacing:0.8px;
     margin:16px 0 6px;
   }
-  input[type=text], input[type=password], select{
+  input[type=text], input[type=password], input[type=number], select{
     width:100%;
     background:var(--panel-2);
     border:1px solid #262a3d;
@@ -492,15 +586,30 @@
 <body>
 <div class="app">
   <header>
-    <div class="brand"><span class="dot"></span>Voxa <span class="version-badge" id="versionBadge">v0.0.0</span></div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="icon-btn" id="menuBtn">☰</div>
+      <div class="brand"><span class="dot"></span>Voxa <span class="version-badge" id="versionBadge">v0.0.0</span></div>
+    </div>
     <div class="icon-btn" id="settingsBtn">⚙</div>
   </header>
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop">
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <button class="icon-btn" id="sidebarCloseBtn" type="button">✕</button>
+        <button class="btn primary" id="newChatBtn" type="button">+ New chat</button>
+      </div>
+      <input type="text" id="sidebarSearch" placeholder="Search chats...">
+      <div class="sidebar-list" id="sidebarList"></div>
+    </div>
+  </div>
 
   <div class="pinned-top" id="pinnedTop"></div>
 
   <div class="scroll-region" id="scrollRegion">
     <div class="stage" id="stageBlock">
       <div class="status" id="statusText">tap the mic to talk</div>
+      <button class="speech-control" id="speechControlBtn" type="button" style="display:none;">⏸</button>
       <div class="orb-wrap" id="orbWrap">
         <svg class="orb" viewBox="0 0 240 240">
           <circle class="ring" id="ring1" cx="120" cy="120" r="60" stroke="#7C5CFF" stroke-opacity="0.35"/>
@@ -678,6 +787,15 @@
       <button class="btn ghost" data-min="10" type="button">10 min</button>
       <button class="btn ghost" data-min="30" type="button">30 min</button>
     </div>
+    <label>Custom timer</label>
+    <div class="row" style="margin-top:0;">
+      <input type="number" id="customTimerHours" placeholder="hr" min="0" max="23" style="text-align:center;">
+      <input type="number" id="customTimerMinutes" placeholder="min" min="0" max="59" style="text-align:center;">
+      <input type="number" id="customTimerSeconds" placeholder="sec" min="0" max="59" style="text-align:center;">
+    </div>
+    <div class="row">
+      <button class="btn primary" id="customTimerBtn" type="button" style="flex:1;">Start custom timer</button>
+    </div>
 
     <label>Notes</label>
     <input type="text" id="quickNoteInput" placeholder="Type a note and tap Add">
@@ -702,11 +820,24 @@
   </div>
 </div>
 
+<div class="alarm-ring-overlay" id="alarmRingOverlay" style="display:none;">
+  <div class="alarm-ring-content">
+    <div class="alarm-ring-time" id="alarmRingTime">7:00 AM</div>
+    <div class="alarm-ring-title" id="alarmRingTitle">Alarm</div>
+    <div class="alarm-ring-message" id="alarmRingMessage"></div>
+    <div class="alarm-slider-track" id="alarmSliderTrack">
+      <span class="slider-label-left">Pause</span>
+      <div class="alarm-slider-handle" id="alarmSliderHandle">⏰</div>
+      <span class="slider-label-right">Snooze</span>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 /* ---------------- Version — check this number in the app to confirm you're on the latest file ---------------- */
-const VOXA_VERSION = '1.8.0';
+const VOXA_VERSION = '1.9.0';
 
 /* ---------------- Utility ---------------- */
 const $ = (id) => document.getElementById(id);
@@ -726,9 +857,23 @@ function toast(msg, ms=2400){
   toast._t = setTimeout(()=>toastEl.classList.remove('show'), ms);
 }
 
-function addLine(role, text){
+let lastUserQuery = '';
+
+function mkIconBtn(icon, label, onclick){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'msg-action-btn';
+  b.textContent = icon;
+  b.title = label;
+  b.onclick = onclick;
+  return b;
+}
+
+function addLine(role, text, opts){
+  opts = opts || {};
   const div = document.createElement('div');
   div.className = 'line ' + role;
+  if (role === 'assistant') div.dataset.source = lastUserQuery;
   const tag = document.createElement('span');
   tag.className = 'tag';
   tag.textContent = role === 'user' ? 'you' : 'voxa';
@@ -736,9 +881,34 @@ function addLine(role, text){
   const body = document.createElement('span');
   body.textContent = text;
   div.appendChild(body);
+
+  if (role === 'assistant') {
+    const actions = document.createElement('div');
+    actions.className = 'msg-actions';
+    actions.appendChild(mkIconBtn('📋', 'Copy', () => {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => toast('Copied')).catch(() => toast("Couldn't copy"));
+      } else {
+        toast("Copy isn't supported in this browser");
+      }
+    }));
+    actions.appendChild(mkIconBtn('🔊', 'Read aloud', () => speakFull(text)));
+    const upBtn = mkIconBtn('👍', 'Good response', () => { upBtn.classList.toggle('active'); downBtn.classList.remove('active'); });
+    const downBtn = mkIconBtn('👎', 'Not helpful', () => { downBtn.classList.toggle('active'); upBtn.classList.remove('active'); });
+    actions.appendChild(upBtn);
+    actions.appendChild(downBtn);
+    actions.appendChild(mkIconBtn('🔁', 'Retry', () => {
+      const src = div.dataset.source;
+      if (src) handleCommand(src);
+      else toast("Nothing to retry — this wasn't a reply to a question.");
+    }));
+    div.appendChild(actions);
+  }
+
   transcriptEl.appendChild(div);
   const region = document.getElementById('scrollRegion');
   if (region) region.scrollTop = region.scrollHeight;
+  if (opts.record !== false) recordMessage(role, text);
 }
 
 function setStatus(state, text){
@@ -757,6 +927,129 @@ let settings = store.get('voxa_settings', {
   city:'', apiKey:'', voiceKey:'', notifSound:'default'
 });
 let notes = store.get('voxa_notes', []);
+
+/* ---------------- Chat sessions (sidebar history) ---------------- */
+let currentSessionId = null;
+let currentMessages = [];
+
+function deriveTitle(messages){
+  const firstUser = messages.find((m) => m.role === 'user');
+  if (!firstUser) return 'New chat';
+  const t = firstUser.text.trim();
+  return t.length > 42 ? t.slice(0, 42) + '…' : t;
+}
+
+function saveCurrentSession(){
+  if (!currentSessionId || currentMessages.length === 0) return;
+  const sessions = store.get('voxa_sessions', []);
+  const idx = sessions.findIndex((s) => s.id === currentSessionId);
+  const now = Date.now();
+  const session = {
+    id: currentSessionId,
+    title: deriveTitle(currentMessages),
+    createdAt: idx >= 0 ? sessions[idx].createdAt : now,
+    updatedAt: now,
+    messages: currentMessages
+  };
+  if (idx >= 0) sessions[idx] = session; else sessions.unshift(session);
+  store.set('voxa_sessions', sessions);
+}
+
+function recordMessage(role, text){
+  if (!currentSessionId) currentSessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  currentMessages.push({ role, text });
+  saveCurrentSession();
+}
+
+function formatSessionDate(ts){
+  const d = new Date(ts);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return 'Today';
+  const yest = new Date(now);
+  yest.setDate(now.getDate() - 1);
+  if (d.toDateString() === yest.toDateString()) return 'Yesterday';
+  const opts = d.getFullYear() === now.getFullYear()
+    ? { month: 'short', day: 'numeric' }
+    : { month: 'short', day: 'numeric', year: 'numeric' };
+  return d.toLocaleDateString([], opts);
+}
+
+function renderSidebarList(){
+  const list = document.getElementById('sidebarList');
+  if (!list) return;
+  list.innerHTML = '';
+  const query = (document.getElementById('sidebarSearch').value || '').toLowerCase().trim();
+  let sessions = store.get('voxa_sessions', []).slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  if (query) sessions = sessions.filter((s) => (s.title || '').toLowerCase().includes(query));
+
+  let lastMonthKey = null;
+  sessions.forEach((s) => {
+    const d = new Date(s.updatedAt || s.createdAt);
+    const monthKey = d.toLocaleDateString([], { month: 'long', year: 'numeric' });
+    if (monthKey !== lastMonthKey) {
+      const heading = document.createElement('div');
+      heading.className = 'sidebar-month-heading';
+      heading.textContent = monthKey;
+      list.appendChild(heading);
+      lastMonthKey = monthKey;
+    }
+    const item = document.createElement('div');
+    item.className = 'sidebar-item' + (s.id === currentSessionId ? ' current' : '');
+    const title = document.createElement('span');
+    title.className = 'title';
+    title.textContent = s.title || 'New chat';
+    const date = document.createElement('span');
+    date.className = 'date';
+    date.textContent = formatSessionDate(s.updatedAt || s.createdAt);
+    item.append(title, date);
+    item.onclick = () => {
+      loadSession(s.id);
+      document.getElementById('sidebarBackdrop').classList.remove('open');
+    };
+    list.appendChild(item);
+  });
+  if (!sessions.length) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'color:var(--muted);font-size:12px;padding:12px 8px;';
+    empty.textContent = query ? 'No matching chats.' : 'No saved chats yet.';
+    list.appendChild(empty);
+  }
+}
+
+function loadSession(id){
+  saveCurrentSession();
+  const session = store.get('voxa_sessions', []).find((s) => s.id === id);
+  if (!session) return;
+  currentSessionId = session.id;
+  currentMessages = session.messages.slice();
+  transcriptEl.innerHTML = '';
+  lastUserQuery = '';
+  session.messages.forEach((m) => {
+    if (m.role === 'user') lastUserQuery = m.text;
+    addLine(m.role, m.text, { record: false });
+  });
+}
+
+function startNewChat(){
+  saveCurrentSession();
+  currentSessionId = null;
+  currentMessages = [];
+  lastUserQuery = '';
+  transcriptEl.innerHTML = '';
+  addLine('assistant', "Hi, I'm Voxa. Tap the mic and talk to me.", { record: false });
+  document.getElementById('sidebarBackdrop').classList.remove('open');
+}
+
+document.getElementById('menuBtn').onclick = () => {
+  renderSidebarList();
+  document.getElementById('sidebarBackdrop').classList.add('open');
+};
+document.getElementById('sidebarCloseBtn').onclick = () => document.getElementById('sidebarBackdrop').classList.remove('open');
+document.getElementById('sidebarBackdrop').onclick = (e) => {
+  if (e.target.id === 'sidebarBackdrop') document.getElementById('sidebarBackdrop').classList.remove('open');
+};
+document.getElementById('newChatBtn').onclick = () => startNewChat();
+document.getElementById('sidebarSearch').addEventListener('input', () => renderSidebarList());
 
 $('cityInput').value = settings.city || '';
 $('apiKeyInput').value = settings.apiKey || '';
@@ -823,21 +1116,66 @@ function currentVoice(){
 
 $('testVoiceBtn').onclick = () => speak("Hi, this is how I'll sound.");
 
+function firstTwoLines(text){
+  const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
+  return sentences.slice(0, 2).join(' ').trim();
+}
+
+let speechPaused = false;
+function showSpeechControl(){
+  const btn = document.getElementById('speechControlBtn');
+  if (btn) { btn.style.display = 'flex'; btn.textContent = '⏸'; }
+  speechPaused = false;
+}
+function hideSpeechControl(){
+  const btn = document.getElementById('speechControlBtn');
+  if (btn) btn.style.display = 'none';
+  speechPaused = false;
+}
+const speechControlBtn = document.getElementById('speechControlBtn');
+if (speechControlBtn) {
+  speechControlBtn.onclick = () => {
+    if (!synth) return;
+    if (speechPaused) { synth.resume(); speechPaused = false; speechControlBtn.textContent = '⏸'; }
+    else { synth.pause(); speechPaused = true; speechControlBtn.textContent = '▶'; }
+  };
+}
+
+// Auto-read after a response: voice/loop mode reads the FULL message with the
+// pause/resume control; text mode reads only a short preview so a long reply
+// doesn't trap you in unwanted audio. Every message's own speaker button
+// (below) always reads the full thing on demand, in either mode.
 function speak(text){
   return new Promise((resolve) => {
     addLine('assistant', text);
     if (!synth) { resolve(); return; }
     synth.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
+    const spokenText = textMode ? firstTwoLines(text) : text;
+    if (!spokenText) { resolve(); return; }
+    const utter = new SpeechSynthesisUtterance(spokenText);
     const v = currentVoice();
     if (v) utter.voice = v;
     utter.rate = 1.0;
     utter.pitch = 1.0;
-    utter.onstart = () => setStatus('speaking', 'speaking');
-    utter.onend = () => { setStatus('idle', loopMode ? 'loop listening' : 'tap the mic to talk'); resolve(); };
-    utter.onerror = () => resolve();
+    utter.onstart = () => { setStatus('speaking', 'speaking'); if (!textMode) showSpeechControl(); };
+    utter.onend = () => { hideSpeechControl(); setStatus('idle', loopMode ? 'loop listening' : 'tap the mic to talk'); resolve(); };
+    utter.onerror = () => { hideSpeechControl(); resolve(); };
     synth.speak(utter);
   });
+}
+
+function speakFull(text){
+  if (!synth) return;
+  synth.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  const v = currentVoice();
+  if (v) utter.voice = v;
+  utter.rate = 1.0;
+  utter.pitch = 1.0;
+  utter.onstart = () => { setStatus('speaking', 'speaking'); showSpeechControl(); };
+  utter.onend = () => { hideSpeechControl(); setStatus('idle', loopMode ? 'loop listening' : 'tap the mic to talk'); };
+  utter.onerror = () => hideSpeechControl();
+  synth.speak(utter);
 }
 
 /* ---------------- Speech Recognition — robust loop mode ---------------- */
@@ -966,10 +1304,12 @@ modeToggle.onclick = () => {
   modeToggle.textContent = textMode ? '🎤' : '⌨';
   attachMenu.classList.remove('open');
   if (textMode) {
-    if (loopMode) { loopMode = false; loopRunId++; contToggle.classList.remove('active'); if (listening) recognition.stop(); }
+    if (loopMode) { loopMode = false; loopRunId++; contToggle.classList.remove('active'); }
+    if (listening && recognition) recognition.stop();
     contToggle.style.display = 'none'; // LOOP is voice-only — hide it to give the input real width
     renderTextBar();
   } else {
+    if (listening && recognition) recognition.stop();
     contToggle.style.display = '';
     renderVoiceBar();
   }
@@ -1062,6 +1402,20 @@ document.querySelectorAll('#moreModal [data-min]').forEach((btn) => {
     $('moreModal').classList.remove('open');
   };
 });
+$('customTimerBtn').onclick = () => {
+  const h = parseInt($('customTimerHours').value, 10) || 0;
+  const m = parseInt($('customTimerMinutes').value, 10) || 0;
+  const s = parseInt($('customTimerSeconds').value, 10) || 0;
+  const totalMs = (h*3600 + m*60 + s) * 1000;
+  if (totalMs <= 0) { toast('Enter a duration first'); return; }
+  const label = [h && `${h}h`, m && `${m}m`, s && `${s}s`].filter(Boolean).join(' ');
+  startTimerUI(totalMs, `Your ${label} timer is up.`);
+  toast(`Timer set for ${label}`);
+  $('customTimerHours').value = '';
+  $('customTimerMinutes').value = '';
+  $('customTimerSeconds').value = '';
+  $('moreModal').classList.remove('open');
+};
 $('quickStopwatchBtn').onclick = () => {
   startStopwatchUI();
   $('moreModal').classList.remove('open');
@@ -1129,6 +1483,14 @@ function handleListenError(err){
     toast('Microphone permission is blocked. Enable it in your browser site settings.');
     return true;
   }
+  if (err === 'start-failed') {
+    toast('Mic was still busy — tap again.');
+    return false;
+  }
+  if (err === 'no-speech' || err === 'aborted' || err === 'no-result') {
+    return false;
+  }
+  toast('Mic hiccup (' + err + ') — tap again.');
   return false;
 }
 
@@ -1316,6 +1678,16 @@ function unpinTopBlocks(){
   if (pinnedTop) pinnedTop.classList.remove('active');
 }
 
+let wakeLockRef = null;
+async function acquireWakeLock(){
+  try {
+    if ('wakeLock' in navigator) wakeLockRef = await navigator.wakeLock.request('screen');
+  } catch (e) { /* not supported or denied — timer/alarm still runs while the app stays open */ }
+}
+function releaseWakeLock(){
+  try { if (wakeLockRef) { wakeLockRef.release(); wakeLockRef = null; } } catch (e) {}
+}
+
 function showActiveCard(mode){
   activeMode = mode;
   const orbWrap = document.getElementById('orbWrap');
@@ -1329,11 +1701,14 @@ function showActiveCard(mode){
   const lapList = document.getElementById('lapList');
   if (lapList) lapList.innerHTML = '';
   pinTopBlocks();
+  acquireWakeLock();
 }
 function hideActiveCard(){
   activeMode = null;
   if (activeInterval) clearInterval(activeInterval);
   activeInterval = null;
+  stopAlarmSound();
+  hideAlarmRingUI();
   const card = document.getElementById('activeCard');
   const orbWrap = document.getElementById('orbWrap');
   const statusText = document.getElementById('statusText');
@@ -1342,6 +1717,7 @@ function hideActiveCard(){
   if (statusText) statusText.style.display = '';
   setRingProgress(0);
   unpinTopBlocks();
+  releaseWakeLock();
 }
 
 /* ---- Timer ---- */
@@ -1459,9 +1835,11 @@ function tickAlarm(){
     activeInterval = null;
     activeRunning = false;
     const note = document.getElementById('activeSub').textContent;
-    playTone(alarmSoundName, 6);
+    startAlarmSoundLoop(alarmSoundName);
     notifyUser(note || 'Alarm', note ? note : "Time's up!");
     renderAlarmControls(true);
+    const timeText = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    showAlarmRingUI(note || 'Alarm', note ? note : "Time's up!", timeText);
   }
 }
 function renderAlarmControls(done){
@@ -1471,16 +1849,90 @@ function renderAlarmControls(done){
   if (done) {
     const note = document.getElementById('activeSub').textContent;
     c.append(
-      mkBtn('Snooze 5 min', () => {
-        const t = new Date(Date.now() + 5*60000);
-        beginAlarm(t.getHours(), t.getMinutes(), note, alarmSoundName);
-      }),
-      mkBtn('Dismiss', hideActiveCard, 'primary')
+      mkBtn('Snooze 5 min', () => snoozeRingingAlarm()),
+      mkBtn('Dismiss', () => dismissRingingAlarm(), 'primary')
     );
     return;
   }
   c.append(mkBtn('Cancel alarm', hideActiveCard, 'danger'));
 }
+
+/* ---- Looping alarm sound (until dismissed/snoozed) ---- */
+let alarmSoundIntervalId = null;
+function startAlarmSoundLoop(soundName){
+  stopAlarmSound();
+  playTone(soundName, 1);
+  alarmSoundIntervalId = setInterval(() => playTone(soundName, 1), 1600);
+}
+function stopAlarmSound(){
+  if (alarmSoundIntervalId) { clearInterval(alarmSoundIntervalId); alarmSoundIntervalId = null; }
+}
+
+/* ---- Full-screen ringing alarm with slide-to-dismiss/snooze ---- */
+function showAlarmRingUI(title, message, timeText){
+  const overlay = document.getElementById('alarmRingOverlay');
+  if (!overlay) return;
+  document.getElementById('alarmRingTime').textContent = timeText;
+  document.getElementById('alarmRingTitle').textContent = title;
+  document.getElementById('alarmRingMessage').textContent = message;
+  overlay.style.display = 'flex';
+  resetAlarmSliderHandle();
+}
+function hideAlarmRingUI(){
+  const overlay = document.getElementById('alarmRingOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+function resetAlarmSliderHandle(){
+  const handle = document.getElementById('alarmSliderHandle');
+  if (handle) { handle.style.transition = 'transform 0.2s ease'; handle.style.transform = 'translate(-50%,-50%)'; }
+}
+function dismissRingingAlarm(){
+  stopAlarmSound();
+  hideAlarmRingUI();
+  hideActiveCard();
+}
+function snoozeRingingAlarm(){
+  stopAlarmSound();
+  hideAlarmRingUI();
+  const note = document.getElementById('activeSub').textContent;
+  const t = new Date(Date.now() + 5*60000);
+  beginAlarm(t.getHours(), t.getMinutes(), note, alarmSoundName);
+}
+(function setupAlarmSlider(){
+  const track = document.getElementById('alarmSliderTrack');
+  const handle = document.getElementById('alarmSliderHandle');
+  if (!track || !handle) return;
+  let dragging = false;
+  let startX = 0;
+  let currentX = 0;
+
+  function pointX(e){ return e.touches ? e.touches[0].clientX : e.clientX; }
+  function onDown(e){ dragging = true; startX = pointX(e); handle.style.transition = 'none'; }
+  function onMove(e){
+    if (!dragging) return;
+    const trackWidth = track.offsetWidth - handle.offsetWidth;
+    const half = trackWidth / 2;
+    currentX = Math.max(-half, Math.min(half, pointX(e) - startX));
+    handle.style.transform = `translate(calc(-50% + ${currentX}px), -50%)`;
+  }
+  function onUp(){
+    if (!dragging) return;
+    dragging = false;
+    handle.style.transition = 'transform 0.2s ease';
+    const trackWidth = track.offsetWidth - handle.offsetWidth;
+    const threshold = trackWidth * 0.35;
+    if (currentX < -threshold) dismissRingingAlarm();
+    else if (currentX > threshold) snoozeRingingAlarm();
+    else handle.style.transform = 'translate(-50%,-50%)';
+    currentX = 0;
+  }
+  handle.addEventListener('mousedown', onDown);
+  handle.addEventListener('touchstart', onDown, { passive: true });
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('touchmove', onMove, { passive: true });
+  window.addEventListener('mouseup', onUp);
+  window.addEventListener('touchend', onUp);
+})();
 
 /* ---- Stopwatch ---- */
 function startStopwatchUI(){
@@ -1646,6 +2098,8 @@ function fileToBase64(file){
 // docs. Groq deprecates models on a fast, ongoing schedule — if this ever
 // fails again, that's them retiring a model, and the catch below still
 // degrades gracefully instead of leaving a raw error in the chat.
+const PLAIN_TEXT_RULE = 'Never use markdown formatting — no asterisks, no pound signs, no bullet dashes, no numbered-list syntax. Write in plain prose paragraphs only, since this is displayed as plain text with no formatting support.';
+
 async function askAIVision(question, file){
   const base64 = await fileToBase64(file);
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -1656,7 +2110,7 @@ async function askAIVision(question, file){
       messages: [{
         role: 'user',
         content: [
-          { type: 'text', text: question },
+          { type: 'text', text: `${question}\n\n${PLAIN_TEXT_RULE} Answer in a few clear sentences.` },
           { type: 'image_url', image_url: { url: `data:${file.type};base64,${base64}` } }
         ]
       }],
@@ -1671,18 +2125,18 @@ async function askAIVision(question, file){
   return data.choices?.[0]?.message?.content?.trim() || "I couldn't describe that image.";
 }
 
-async function askAI(question){
+async function askAI(question, systemPrompt){
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + settings.apiKey },
     body: JSON.stringify({
       model: 'openai/gpt-oss-120b',
       messages: [
-        {role:'system', content:'You are Voxa, a concise voice assistant. Answer in 1-3 short spoken sentences, no markdown, no lists.'},
+        {role:'system', content: systemPrompt || `You are Voxa, a concise voice assistant. Answer in 1-3 short spoken sentences. ${PLAIN_TEXT_RULE}`},
         ...conversationHistory,
         {role:'user', content: question}
       ],
-      max_tokens: 300
+      max_tokens: 500
     })
   });
   if (!res.ok) {
@@ -1763,7 +2217,8 @@ async function analyzeAttachment(file, userText){
   docText = (docText || '').trim();
   if (!docText) throw new Error('no extractable text found in this file');
   const prompt = `${question}\n\nDocument content (from "${file.name}"):\n${docText.slice(0, 8000)}`;
-  return await askAI(prompt);
+  const docSystemPrompt = `You are Voxa. Summarize or answer questions about the attached document clearly and completely — use as many sentences as the content actually needs, organized into short paragraphs by topic. ${PLAIN_TEXT_RULE}`;
+  return await askAI(prompt, docSystemPrompt);
 }
 
 const JOKES = [
@@ -1776,6 +2231,7 @@ const JOKES = [
 
 /* ---------------- Command handling ---------------- */
 async function handleCommand(raw, attachment){
+  lastUserQuery = raw;
   const text = raw.toLowerCase();
 
   if (attachment && attachment.file) {
@@ -1955,7 +2411,13 @@ window.addEventListener('load', () => {
     }
   } catch (e) { /* ignore — offline caching is a nice-to-have, never blocks the app */ }
   $('versionBadge').textContent = 'v' + VOXA_VERSION;
-  addLine('assistant', "Hi, I'm Voxa. Tap the mic and talk to me.");
+  const sessions = store.get('voxa_sessions', []);
+  if (sessions.length) {
+    const mostRecent = sessions.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
+    loadSession(mostRecent.id);
+  } else {
+    addLine('assistant', "Hi, I'm Voxa. Tap the mic and talk to me.", { record: false });
+  }
 });
 </script>
 </body>
